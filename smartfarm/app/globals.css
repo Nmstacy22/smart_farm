@@ -49,6 +49,8 @@
 }
 
 :root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -125,6 +127,44 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-sans scroll-smooth;
   }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Subtle animated gradient background for the body */
+body {
+  background-image:
+    radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(79,70,229,0.11), transparent 20%),
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.05), transparent 0),
+    radial-gradient(circle at 85% 20%, rgba(255,255,255,0.03), transparent 0),
+    radial-gradient(circle at 3% 95%, rgba(16,185,129,0.03), transparent 0),
+    radial-gradient(circle at 95% 95%, rgba(56,189,248,0.04), transparent 0);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.dark body {
+  background-image:
+    radial-gradient(circle at top left, rgba(16,185,129,0.14), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(79,70,229,0.14), transparent 18%),
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.04), transparent 0),
+    radial-gradient(circle at 90% 15%, rgba(255,255,255,0.02), transparent 0),
+    radial-gradient(circle at 3% 95%, rgba(16,185,129,0.05), transparent 0),
+    radial-gradient(circle at 95% 95%, rgba(99,102,241,0.06), transparent 0);
 }

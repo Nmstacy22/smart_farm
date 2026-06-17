@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Icon as LucideIcon } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 
 export default function StatCard({
   title,
