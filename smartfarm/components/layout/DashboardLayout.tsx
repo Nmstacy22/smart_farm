@@ -6,13 +6,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Sprout, Package, Wallet, CheckSquare, LogOut, Info, ChevronRight, Wheat, Beef, BarChart, Settings } from 'lucide-react';
 import { useAuth } from '../providers/AuthProvider';
+import { useFarm } from '../../lib/hooks/useFarm';
+import OnboardingView from './OnboardingView';
 
 type Props = {
   children: React.ReactNode;
 };
 
 const sidebarLinks = [
-  { href: '/', label: 'Home', icon: Home },
+  { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/crops', label: 'Crops', icon: Wheat },
   { href: '/livestock', label: 'Livestock', icon: Beef },
   { href: '/inventory', label: 'Inventory', icon: Package },
@@ -29,8 +31,18 @@ function getInitials(email: string) {
 export default function DashboardLayout({ children }: Props) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { profile, loading, currentUserRole } = useFarm();
 
-  const currentPage = sidebarLinks.find(l => l.href === pathname)?.label || 'Dashboard';
+  if (!loading && !profile && user) {
+    return <OnboardingView />;
+  }
+
+  const visibleLinks = sidebarLinks.filter(l => {
+    if (l.href === '/reports' && currentUserRole === 'worker') return false;
+    return true;
+  });
+
+  const currentPage = visibleLinks.find(l => l.href === pathname)?.label || 'Dashboard';
 
   return (
     <div className="min-h-[100vh] bg-slate-50 dark:bg-zinc-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-emerald-500/30">
@@ -69,7 +81,7 @@ export default function DashboardLayout({ children }: Props) {
                 <div className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 px-2">Navigation</div>
 
                 <ul className="space-y-1">
-                  {sidebarLinks.map((l) => {
+                  {visibleLinks.map((l) => {
                     const isActive = pathname === l.href;
                     const Icon = l.icon;
                     return (

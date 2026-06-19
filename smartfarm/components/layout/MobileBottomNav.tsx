@@ -8,7 +8,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const tabs = [
-  { href: '/', label: 'Home', icon: Home },
+  { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/crops', label: 'Crops', icon: Wheat },
   { href: '/livestock', label: 'Livestock', icon: Beef },
   { href: '/inventory', label: 'Stock', icon: Package },

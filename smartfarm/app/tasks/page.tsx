@@ -6,8 +6,12 @@ import { dbService } from '../../lib/services/db';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Calendar, User, CheckCircle2, Circle, Clock, Trash2, Loader2, ClipboardList } from 'lucide-react';
 
-function TaskCard({ t, onToggle, onDelete }: { t: any, onToggle: (id: string) => void, onDelete: (id: string) => void }) {
+import { useFarm } from '../../lib/hooks/useFarm';
+
+function TaskCard({ t, currentUserRole, currentUserId, onToggle, onDelete }: { t: any, currentUserRole: string, currentUserId?: string, onToggle: (id: string) => void, onDelete: (id: string) => void }) {
   const isDone = t.status === 'done';
+  const canToggle = currentUserRole !== 'worker' || t.assignee_id === currentUserId;
+
   return (
     <motion.div 
       layout
@@ -23,8 +27,11 @@ function TaskCard({ t, onToggle, onDelete }: { t: any, onToggle: (id: string) =>
     >
       <div className="flex items-start gap-4">
         <button 
-          onClick={() => onToggle(t.id)}
-          className={`mt-1 transition-colors cursor-pointer ${isDone ? 'text-emerald-500' : 'text-slate-350 hover:text-emerald-500 dark:text-zinc-650 dark:hover:text-emerald-400'}`}
+          onClick={() => {
+            if (canToggle) onToggle(t.id);
+          }}
+          disabled={!canToggle}
+          className={`mt-1 transition-colors ${canToggle ? 'cursor-pointer hover:text-emerald-500 dark:hover:text-emerald-400' : 'cursor-not-allowed opacity-50'} ${isDone ? 'text-emerald-500' : 'text-slate-350 dark:text-zinc-650'}`}
         >
           {isDone ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
         </button>
@@ -51,13 +58,15 @@ function TaskCard({ t, onToggle, onDelete }: { t: any, onToggle: (id: string) =>
           }`}>
             {t.status === 'in_progress' ? 'doing' : t.status}
           </div>
-          <button 
-            onClick={() => onDelete(t.id)}
-            className="p-1 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
-            title="Delete Task"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {currentUserRole !== 'worker' && (
+            <button 
+              onClick={() => onDelete(t.id)}
+              className="p-1 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+              title="Delete Task"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -65,17 +74,23 @@ function TaskCard({ t, onToggle, onDelete }: { t: any, onToggle: (id: string) =>
 }
 
 export default function TasksPage() {
+  const { currentUserRole, profile } = useFarm();
   const [list, setList] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [assignee, setAssignee] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(true);
+  const [team, setTeam] = useState<any[]>([]);
 
   async function loadData() {
     try {
-      const data = await dbService.getTasks();
-      setList(data);
+      const [tasksData, teamData] = await Promise.all([
+        dbService.getTasks(),
+        dbService.getFarmTeam()
+      ]);
+      setList(tasksData);
+      setTeam(teamData);
     } catch (e) {
       console.error('Failed to load tasks:', e);
     } finally {
@@ -93,7 +108,7 @@ export default function TasksPage() {
 
     const n = { 
       title, 
-      assignee: assignee || 'Unassigned', 
+      assignee_id: assigneeId || undefined, 
       due_date: dueDate || new Date(Date.now() + 86400000).toISOString().split('T')[0], 
       status: 'pending' 
     };
@@ -103,7 +118,7 @@ export default function TasksPage() {
     
     // Reset inputs
     setTitle('');
-    setAssignee('');
+    setAssigneeId('');
     setDueDate('');
     setOpen(false);
     loadData();
@@ -153,13 +168,15 @@ export default function TasksPage() {
               <p className="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">Assign, track, and complete farm operations.</p>
             </div>
             <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setOpen((v) => !v)} 
-                className="flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                {open ? 'Cancel' : 'New Task'}
-              </button>
+              {currentUserRole !== 'worker' && (
+                <button 
+                  onClick={() => setOpen((v) => !v)} 
+                  className="flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  {open ? 'Cancel' : 'New Task'}
+                </button>
+              )}
             </div>
           </header>
         </div>
@@ -184,12 +201,18 @@ export default function TasksPage() {
                     autoFocus
                     required
                   />
-                  <input 
-                    value={assignee} 
-                    onChange={(e) => setAssignee(e.target.value)} 
-                    placeholder="Assignee Name (e.g. Aminata)" 
+                  <select 
+                    value={assigneeId} 
+                    onChange={(e) => setAssigneeId(e.target.value)} 
                     className="p-3 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 dark:text-white" 
-                  />
+                  >
+                    <option value="">Unassigned</option>
+                    {team.map((member) => (
+                      <option key={member.user_id} value={member.user_id}>
+                        {member.users?.email || 'Unknown User'} ({member.role})
+                      </option>
+                    ))}
+                  </select>
                   <input 
                     type="date"
                     value={dueDate} 
@@ -217,7 +240,7 @@ export default function TasksPage() {
             <motion.div layout className="space-y-4">
               <AnimatePresence mode="popLayout">
                 {pendingTasks.map((t) => (
-                  <TaskCard key={t.id} t={t} onToggle={toggleStatus} onDelete={handleDelete} />
+                  <TaskCard key={t.id} t={t} currentUserRole={currentUserRole} currentUserId={profile?.currentUserId} onToggle={toggleStatus} onDelete={handleDelete} />
                 ))}
               </AnimatePresence>
               {pendingTasks.length === 0 && (
@@ -238,7 +261,7 @@ export default function TasksPage() {
             <motion.div layout className="space-y-4">
               <AnimatePresence mode="popLayout">
                 {completedTasks.map((t) => (
-                  <TaskCard key={t.id} t={t} onToggle={toggleStatus} onDelete={handleDelete} />
+                  <TaskCard key={t.id} t={t} currentUserRole={currentUserRole} currentUserId={profile?.currentUserId} onToggle={toggleStatus} onDelete={handleDelete} />
                 ))}
               </AnimatePresence>
               {completedTasks.length === 0 && (
