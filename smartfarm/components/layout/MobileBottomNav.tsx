@@ -3,21 +3,30 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
-import { Home, Sprout, Package, Wallet, CheckSquare, LogOut, Wheat, Beef, BarChart } from 'lucide-react';
+import { Home, Package, Wallet, CheckSquare, LogOut, Wheat, Beef, BarChart } from 'lucide-react';
 import { useAuth } from '../providers/AuthProvider';
+import { useFarm } from '../../lib/hooks/useFarm';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const tabs = [
-  { href: '/dashboard', label: 'Home', icon: Home },
-  { href: '/crops', label: 'Crops', icon: Wheat },
-  { href: '/livestock', label: 'Livestock', icon: Beef },
-  { href: '/inventory', label: 'Stock', icon: Package },
-  { href: '/reports', label: 'Reports', icon: BarChart },
+const allTabs = [
+  { href: '/dashboard', label: 'Home', icon: Home, workerAllowed: true },
+  { href: '/crops', label: 'Crops', icon: Wheat, workerAllowed: true },
+  { href: '/livestock', label: 'Livestock', icon: Beef, workerAllowed: true },
+  { href: '/inventory', label: 'Stock', icon: Package, workerAllowed: true },
+  { href: '/finance', label: 'Finance', icon: Wallet, workerAllowed: false },
+  { href: '/reports', label: 'Reports', icon: BarChart, workerAllowed: false },
 ];
 
 export default function MobileBottomNav() {
   const path = usePathname() || '/';
   const { signOut, user } = useAuth();
+  const { currentUserRole } = useFarm();
+  const isWorker = currentUserRole === 'worker';
+
+  // Workers see max 4 tabs; owners/managers see all
+  const tabs = allTabs
+    .filter(t => !isWorker || t.workerAllowed)
+    .slice(0, 4); // keep bottom nav tidy
 
   return (
     <nav aria-label="Bottom navigation" className="fixed bottom-4 left-4 right-4 z-40 rounded-3xl bg-white/90 dark:bg-zinc-950/90 backdrop-blur-2xl border border-slate-200/60 dark:border-zinc-800/70 md:hidden shadow-2xl shadow-slate-950/10">

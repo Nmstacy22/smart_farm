@@ -63,8 +63,8 @@ export function AddTransactionDialog({ categories, onAddTransaction }: AddTransa
     setErrorMsg("");
   }, [selectedType, setValue, open]);
 
-  // Filter categories by selected type
-  const filteredCategories = categories.filter(c => c.type === selectedType);
+  // Categories are not strictly typed in the database as income/expense, so we show all of them.
+  const filteredCategories = categories;
 
   const onSubmit = async (data: TransactionFormValues) => {
     setErrorMsg("");

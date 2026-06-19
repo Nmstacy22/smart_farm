@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { dbService } from '../services/db';
 
 export function useFarm() {
-  const [profile, setProfile] = useState<{id: string, name: string, location?: string, currentUserRole?: string} | null>(null);
+  const [profile, setProfile] = useState<{id: string, name: string, location?: string, currentUserRole?: string, currentUserId?: string} | null>(null);
   const [team, setTeam] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

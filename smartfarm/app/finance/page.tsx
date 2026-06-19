@@ -7,8 +7,9 @@ import { TransactionList } from '../../components/finance/transaction-list';
 import { AddTransactionDialog } from '../../components/finance/add-transaction-dialog';
 import { FinanceChart } from '../../components/finance/finance-chart';
 import { dbService } from '../../lib/services/db';
+import { useFarm } from '../../lib/hooks/useFarm';
 import { motion } from 'framer-motion';
-import { Loader2, Wallet, BarChart3, List } from 'lucide-react';
+import { Loader2, Wallet, BarChart3, List, Lock } from 'lucide-react';
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 14 },
@@ -16,6 +17,7 @@ const sectionVariants = {
 };
 
 export default function FinancePage() {
+  const { currentUserRole } = useFarm();
   const [txs, setTxs] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,22 @@ export default function FinancePage() {
     );
   }
 
+  if (currentUserRole === 'worker') {
+    return (
+      <DashboardLayout>
+        <div className="flex h-[70vh] w-full flex-col items-center justify-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+            <Lock className="w-6 h-6 text-rose-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Access Restricted</h2>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-sm text-center">
+            Financial records are restricted to Farm Owners and Managers.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -120,7 +138,7 @@ export default function FinancePage() {
           initial="hidden"
           animate="show"
         >
-          <div className="sf-glass p-6">
+          <div className="sf-card p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="flex items-center gap-2 mb-1">

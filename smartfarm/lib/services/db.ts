@@ -167,10 +167,13 @@ export const dbService = {
   },
 
   async getOverviewStats(): Promise<{ fields: number; workers: number; tasks: number }> {
+    const farmId = await getFarmId();
+    if (!farmId) return { fields: 0, workers: 0, tasks: 0 };
+
     const [fields, workers, tasks] = await Promise.all([
-      getCount('fields'),
-      getCount('farm_user_roles'),
-      getCount('tasks'),
+      getCount('fields', { farm_id: farmId }),
+      getCount('farm_user_roles', { farm_id: farmId }),
+      getCount('tasks', { farm_id: farmId }),
     ]);
 
     return {
@@ -542,15 +545,48 @@ export const dbService = {
   async getCategories(): Promise<DbObject[]> {
     const farmId = await getFarmId();
     if (!farmId) return [];
-    const { data, error } = await supabase
+    
+    const fetchCategories = async () => supabase
       .from('financial_transaction_categories')
       .select('id, name, description')
       .eq('farm_id', farmId);
+
+    const { data, error } = await fetchCategories();
     if (error) {
       console.error('Supabase Categories Read Error:', error);
       return [];
     }
-    return (data || []).map((category: DbObject) => ({
+
+    if (!data || data.length === 0) {
+      // Seed default categories into the DB for this farm
+      const defaultCategories = [
+        { farm_id: farmId, name: 'Sales & Revenue', description: 'Income from selling crops or livestock' },
+        { farm_id: farmId, name: 'Seeds & Plants', description: 'Cost of purchasing seeds' },
+        { farm_id: farmId, name: 'Fertilizer & Chemicals', description: 'Soil treatments and pesticides' },
+        { farm_id: farmId, name: 'Equipment & Maintenance', description: 'Tools, machinery, fuel' },
+        { farm_id: farmId, name: 'Labor & Wages', description: 'Paying farm workers' },
+        { farm_id: farmId, name: 'Other', description: 'Miscellaneous' }
+      ];
+
+      const { error: seedError } = await supabase
+        .from('financial_transaction_categories')
+        .insert(defaultCategories);
+
+      if (seedError) {
+        console.error('Supabase Categories Seed Error:', seedError);
+        return [];
+      }
+
+      // Refetch the newly inserted categories to get their generated UUIDs
+      const { data: newCategories } = await fetchCategories();
+      return (newCategories || []).map((category: DbObject) => ({
+        id: category.id,
+        name: category.name || 'Uncategorized',
+        description: category.description || '',
+      }));
+    }
+
+    return data.map((category: DbObject) => ({
       id: category.id,
       name: category.name || 'Uncategorized',
       description: category.description || '',

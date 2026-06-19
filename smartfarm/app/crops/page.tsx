@@ -56,9 +56,9 @@ export default function CropsPage() {
     const avgMoisture =
       fields.length > 0
         ? Math.round(
-            fields.reduce((sum, f) => sum + (f.moisture || 0), 0) /
-              fields.length,
-          )
+          fields.reduce((sum, f) => sum + (f.moisture || 0), 0) /
+          fields.length,
+        )
         : 0;
 
     return {
@@ -70,7 +70,7 @@ export default function CropsPage() {
   }, [fields]);
 
   const handleSaveField = async (data: any) => {
-    const res = data.id 
+    const res = data.id
       ? await dbService.updateField(data.id, data)
       : await dbService.createField(data);
     if (res) {
@@ -106,7 +106,7 @@ export default function CropsPage() {
               className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              Add Field
+              Add Crop
             </button>
           </header>
 

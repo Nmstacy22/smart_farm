@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { dbService } from '../../lib/services/db';
+import { useFarm } from '../../lib/hooks/useFarm';
 import { CloudSun, Sunrise, Sunset, Moon } from 'lucide-react';
 import Image from 'next/image';
 
@@ -24,6 +25,8 @@ function getGreeting() {
 }
 
 export default function HeroSection() {
+  const { currentUserRole } = useFarm();
+  const isWorker = currentUserRole === 'worker';
   const [greeting, setGreeting] = useState({ text: 'Welcome', Icon: CloudSun });
   const [stats, setStats] = useState([
     { id: 's1', label: 'Fields', value: '0' },
@@ -53,34 +56,35 @@ export default function HeroSection() {
   const GreetingIcon = greeting.Icon;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl shadow-xl border border-white/10 dark:border-zinc-800/80">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <Image 
-          src="/images/hero-bg.png" 
-          alt="Smart Farm Aerial View" 
-          fill
-          className="object-cover"
-          priority
-        />
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/95 via-zinc-950/70 to-zinc-900/30"></div>
-        <div className="absolute inset-0 bg-emerald-900/20 mix-blend-multiply"></div>
+    <section className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#050505]">
+      {/* Sleek Minimalist Background Pattern */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-slate-100 dark:from-zinc-900 to-transparent"></div>
+        <div className="absolute top-0 right-1/4 w-[300px] h-[300px] bg-slate-200/50 dark:bg-zinc-800/30 rounded-full blur-[80px]"></div>
       </div>
 
-      <motion.div initial="hidden" animate="show" variants={container} className="relative z-10 p-8 sm:p-10 lg:p-12 text-white">
+      <motion.div initial="hidden" animate="show" variants={container} className="relative z-10 p-6 sm:p-8 lg:p-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
           <motion.div variants={item} className="max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6 text-sm font-medium text-emerald-50 shadow-sm">
-              <GreetingIcon className="w-4 h-4 text-emerald-300" />
-              {greeting.text}, Farm Manager
+            <div className={`sf-pill mb-4 border ${
+              isWorker
+                ? 'border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20'
+                : 'border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 bg-slate-50 dark:bg-zinc-900/50'
+            }`}>
+              <div className="flex items-center gap-2">
+                <GreetingIcon className="w-3.5 h-3.5" />
+                {greeting.text}, {isWorker ? 'Worker' : 'Manager'}
+              </div>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4 drop-shadow-md">
-              Your Farm, <br className="hidden sm:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-teal-100">Intelligently Managed</span>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-3 text-slate-900 dark:text-white">
+              {isWorker ? 'Your Tasks,' : 'Your Farm,'} <br />
+              <span className="text-slate-500 dark:text-zinc-500">{isWorker ? 'Ready to Complete' : 'Intelligently Managed'}</span>
             </h1>
-            <p className="text-base sm:text-lg text-emerald-50/90 max-w-lg font-light leading-relaxed drop-shadow">
-              Overview of crop cycles, financial health, and team tasks. Everything you need to grow efficiently.
+            <p className="text-sm sm:text-base text-slate-600 dark:text-zinc-400 max-w-lg font-medium leading-relaxed">
+              {isWorker
+                ? 'View your assigned tasks, check field status, and log your daily farm activities.'
+                : 'Overview of crop cycles, financial health, and team tasks. Everything you need to grow efficiently.'
+              }
             </p>
           </motion.div>
 
@@ -88,11 +92,10 @@ export default function HeroSection() {
             {stats.map((s) => (
               <motion.div 
                 key={s.id} 
-                whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 255, 255, 0.15)' }} 
-                className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-center transition-colors shadow-sm"
+                className="bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg p-4 text-left transition-colors hover:border-slate-300 dark:hover:border-zinc-700"
               >
-                <div className="text-xs sm:text-sm text-emerald-100/80 font-medium tracking-wide uppercase mb-1">{s.label}</div>
-                <div className="text-2xl sm:text-3xl font-bold tracking-tight text-white drop-shadow-sm">{s.value}</div>
+                <div className="text-[10px] text-slate-500 dark:text-zinc-500 font-bold tracking-widest uppercase mb-1">{s.label}</div>
+                <div className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{s.value}</div>
               </motion.div>
             ))}
           </motion.div>

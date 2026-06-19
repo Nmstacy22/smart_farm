@@ -102,7 +102,7 @@ export default function InventoryPage() {
             { label: "Low Stock Warnings", value: stats.lowStock, icon: AlertTriangle, color: stats.lowStock > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400", bg: stats.lowStock > 0 ? "bg-rose-500/10" : "bg-slate-500/10", border: stats.lowStock > 0 ? "border-rose-500/20" : "border-slate-200/50 dark:border-zinc-800/50" },
             { label: "Storage Categories", value: categoriesList.length - 1, icon: Layers, color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/20" },
           ].map(({ label, value, icon: Icon, color, bg, border }) => (
-            <motion.div key={label} variants={cardAnim} whileHover={{ y: -3, scale: 1.02 }} className={`sf-glass p-5 border ${border} transition-all`}>
+            <motion.div key={label} variants={cardAnim} whileHover={{ y: -3, scale: 1.02 }} className={`sf-card p-5 border ${border} transition-all`}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">{label}</span>
                 <div className={`p-2 rounded-lg ${bg} ${color}`}><Icon className="w-4 h-4" /></div>
