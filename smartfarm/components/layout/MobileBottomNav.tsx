@@ -3,15 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
-import { Home, Sprout, Package, Wallet, CheckSquare, LogOut } from 'lucide-react';
+import { Home, Sprout, Package, Wallet, CheckSquare, LogOut, Wheat, Beef, BarChart } from 'lucide-react';
 import { useAuth } from '../providers/AuthProvider';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const tabs = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/farm', label: 'Farm', icon: Sprout },
-  { href: '/inventory', label: 'Inventory', icon: Package },
-  { href: '/finance', label: 'Finance', icon: Wallet },
-  { href: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { href: '/crops', label: 'Crops', icon: Wheat },
+  { href: '/livestock', label: 'Livestock', icon: Beef },
+  { href: '/inventory', label: 'Stock', icon: Package },
+  { href: '/reports', label: 'Reports', icon: BarChart },
 ];
 
 export default function MobileBottomNav() {
@@ -25,27 +26,47 @@ export default function MobileBottomNav() {
           const active = path === t.href;
           const Icon = t.icon;
           return (
-            <Link 
-              key={t.href} 
-              href={t.href} 
-              className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all ${
-                active 
-                  ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105' 
-                  : 'text-slate-500 hover:text-slate-700 dark:text-zinc-500 dark:hover:text-zinc-300'
-              }`}
+            <Link
+              key={t.href}
+              href={t.href}
+              className="relative flex flex-col items-center justify-end flex-1 pt-2 pb-3 gap-0.5 transition-all"
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] mt-1 tracking-tight">{t.label}</span>
+              <AnimatePresence>
+                {active && (
+                  <motion.div
+                    layoutId="bottom-nav-active"
+                    className="absolute top-1 left-1/2 -translate-x-1/2 w-6 h-1 rounded-full bg-emerald-500"
+                    initial={{ opacity: 0, scaleX: 0 }}
+                    animate={{ opacity: 1, scaleX: 1 }}
+                    exit={{ opacity: 0, scaleX: 0 }}
+                    transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
+                  />
+                )}
+              </AnimatePresence>
+              <div className={`p-1.5 rounded-xl transition-all ${
+                active
+                  ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 scale-110'
+                  : 'text-slate-400 dark:text-zinc-500'
+              }`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <span className={`text-[9px] font-bold tracking-tight ${
+                active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'
+              }`}>
+                {t.label}
+              </span>
             </Link>
           );
         })}
         {user && (
-          <button 
+          <button
             onClick={() => signOut()}
-            className="flex flex-col items-center justify-center flex-1 py-1.5 text-rose-500 hover:text-rose-600 cursor-pointer"
+            className="flex flex-col items-center justify-end flex-1 pt-2 pb-3 gap-0.5 text-rose-400 hover:text-rose-500 cursor-pointer transition-colors"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="text-[10px] mt-1 tracking-tight">Logout</span>
+            <div className="p-1.5 rounded-xl">
+              <LogOut className="w-5 h-5" />
+            </div>
+            <span className="text-[9px] font-bold tracking-tight">Logout</span>
           </button>
         )}
       </div>

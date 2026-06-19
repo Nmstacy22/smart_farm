@@ -21,7 +21,7 @@ type Props = {
   onDelete: () => void;
 };
 
-export default function FarmCard({ field, onEdit, onDelete }: Props) {
+export default function CropCard({ field, onEdit, onDelete }: Props) {
   const statusColors = {
     healthy: "bg-emerald-500",
     attention: "bg-amber-500",

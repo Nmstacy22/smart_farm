@@ -57,66 +57,74 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.55 0.18 155);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.97 0.005 150);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent: oklch(0.55 0.18 155);
+  --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
+  --border: oklch(0.922 0.005 150);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --ring: oklch(0.55 0.18 155);
+  --chart-1: oklch(0.55 0.18 155);
+  --chart-2: oklch(0.6 0.15 250);
+  --chart-3: oklch(0.6 0.18 30);
+  --chart-4: oklch(0.65 0.16 85);
+  --chart-5: oklch(0.5 0.2 310);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.985 0.003 150);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.55 0.18 155);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.97 0.005 150);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-border: oklch(0.922 0.005 150);
+  --sidebar-ring: oklch(0.55 0.18 155);
+
+  /* SmartFarm brand tokens */
+  --sf-emerald: #10b981;
+  --sf-emerald-light: #34d399;
+  --sf-emerald-dark: #059669;
+  --sf-indigo: #6366f1;
+  --sf-rose: #f43f5e;
+  --sf-amber: #f59e0b;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --background: oklch(0.1 0.005 240);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.16 0.008 240);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.16 0.008 240);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --primary: oklch(0.6 0.18 155);
+  --primary-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.2 0.008 240);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.2 0.005 240);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.6 0.18 155);
+  --accent-foreground: oklch(0.1 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.6 0.18 155);
+  --chart-1: oklch(0.6 0.18 155);
+  --chart-2: oklch(0.6 0.15 250);
+  --chart-3: oklch(0.65 0.18 30);
+  --chart-4: oklch(0.7 0.16 85);
+  --chart-5: oklch(0.55 0.2 310);
+  --sidebar: oklch(0.14 0.008 240);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-primary: oklch(0.6 0.18 155);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.2 0.008 240);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.6 0.18 155);
 }
 
 @layer base {
@@ -131,23 +139,82 @@
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 9999px;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+/* ─── SmartFarm Design System Utilities ─────────────────────────── */
+
+/* Glass card — the primary surface for all content cards */
+.sf-glass {
+  @apply bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border border-slate-200/50 dark:border-zinc-800/50 rounded-2xl shadow-sm;
 }
 
-/* Subtle animated gradient background for the body */
+/* Solid glass for modals / forms */
+.sf-glass-solid {
+  @apply bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-zinc-800/60 rounded-2xl shadow-md;
+}
+
+/* Section heading */
+.sf-heading {
+  @apply text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white;
+}
+
+/* Section sub-heading */
+.sf-subheading {
+  @apply text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100;
+}
+
+/* Emerald CTA button */
+.sf-btn-primary {
+  @apply flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-bold px-5 py-2.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer;
+}
+
+/* Pill badge */
+.sf-pill {
+  @apply px-3 py-1 rounded-full text-xs font-bold tracking-wide;
+}
+
+/* Standard stat card */
+.sf-stat-card {
+  @apply bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border border-slate-200/50 dark:border-zinc-800/50 rounded-2xl shadow-sm p-5 flex flex-col gap-3;
+}
+
+/* Form input */
+.sf-input {
+  @apply w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/60 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm font-medium placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 outline-none transition-all text-slate-900 dark:text-white;
+}
+
+/* ─── Keyframe Animations ──────────────────────────────────────── */
+
+@keyframes sf-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.25); }
+}
+
+@keyframes sf-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes sf-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes sf-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sf-animate-glow { animation: sf-glow-pulse 2.5s ease-in-out infinite; }
+.sf-animate-float { animation: sf-float 4s ease-in-out infinite; }
+.sf-animate-slide-up { animation: sf-slide-up 0.5s ease-out forwards; }
+
+/* ─── Custom Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.4); }
+.dark ::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.15); }
+
+/* ─── Background dot grid pattern ─────────────────────────────── */
 body {
   background-image:
     radial-gradient(circle at top left, rgba(16,185,129,0.12), transparent 22%),

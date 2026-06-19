@@ -4,30 +4,27 @@ import { cookies } from 'next/headers';
 export async function createClient() {
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  // prefer using service role on server if present, otherwise use anon/publishable
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !key) {
-    console.warn("Supabase credentials missing in server config.");
+    throw new Error('Missing Supabase server env vars. Set  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
   }
 
-  return createServerClient(
-    url || 'https://placeholder-url.supabase.co',
-    key || 'placeholder-anon-key',
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore if called from Server Component (cookies cannot be set there)
-          }
-        },
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Ignore if called from Server Component (cookies cannot be set there)
+        }
+      },
+    },
+  });
 }

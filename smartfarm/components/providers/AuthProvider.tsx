@@ -61,20 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
-    setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return { error: error.message };
       return { error: null };
     } catch (err: any) {
       return { error: err.message || 'Authentication failed' };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string): Promise<{ error: string | null; message?: string }> => {
-    setLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -87,8 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: null, message: 'Account created. Please confirm your email address, then return to sign in.' };
     } catch (err: any) {
       return { error: err.message || 'Registration failed' };
-    } finally {
-      setLoading(false);
     }
   };
 

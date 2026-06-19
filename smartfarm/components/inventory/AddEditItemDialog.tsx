@@ -19,7 +19,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item?: Item | null;
-  onSave: (item: Item) => Promise<void>;
+  onSave: (item: Item) => Promise<boolean>;
 };
 
 export default function AddEditItemDialog({ open, onOpenChange, item, onSave }: Props) {
@@ -29,6 +29,7 @@ export default function AddEditItemDialog({ open, onOpenChange, item, onSave }: 
   const [unit, setUnit] = useState('kg');
   const [lowStock, setLowStock] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (item) {
@@ -44,14 +45,16 @@ export default function AddEditItemDialog({ open, onOpenChange, item, onSave }: 
       setUnit('kg');
       setLowStock(false);
     }
+    setErrorMsg('');
   }, [item, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
+    setErrorMsg('');
     setSubmitting(true);
-    await onSave({
+    const success = await onSave({
       id: item?.id,
       name,
       category,
@@ -60,7 +63,12 @@ export default function AddEditItemDialog({ open, onOpenChange, item, onSave }: 
       lowStock: lowStock || Number(qty) <= 5, // Auto alert if qty <= 5
     });
     setSubmitting(false);
-    onOpenChange(false);
+
+    if (success) {
+      onOpenChange(false);
+    } else {
+      setErrorMsg('Failed to save item. Please make sure your account is fully set up.');
+    }
   };
 
   return (
@@ -74,6 +82,12 @@ export default function AddEditItemDialog({ open, onOpenChange, item, onSave }: 
             Define item details, current quantity levels, and set low stock warning indicators.
           </DialogDescription>
         </DialogHeader>
+
+        {errorMsg && (
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 text-sm p-3 rounded-lg mt-2 font-medium">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1">

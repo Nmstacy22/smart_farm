@@ -33,12 +33,13 @@ async function getTaskStatusId(name: string): Promise<string | null> {
   return data?.id || null;
 }
 
-async function getOrCreateLivestockType(name: string): Promise<string | null> {
+async function getOrCreateLivestockType(name: string, farmId: string): Promise<string | null> {
   if (!name) return null;
   const { data, error } = await supabase
     .from('livestock_types')
     .select('id')
     .eq('name', name)
+    .eq('farm_id', farmId)
     .limit(1)
     .single();
 
@@ -51,7 +52,7 @@ async function getOrCreateLivestockType(name: string): Promise<string | null> {
 
   const { data: inserted, error: insertError } = await supabase
     .from('livestock_types')
-    .insert([{ name }])
+    .insert([{ name, farm_id: farmId }])
     .select('id')
     .limit(1)
     .single();
@@ -62,6 +63,101 @@ async function getOrCreateLivestockType(name: string): Promise<string | null> {
   }
 
   return inserted?.id || null;
+}
+
+/** Fetch the first farm owned by the current authenticated user. */
+async function getFarmId(): Promise<string | null> {
+  console.log('[getFarmId] Fetching user...');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error('[getFarmId] No user logged in.');
+    return null;
+  }
+  console.log(`[getFarmId] Found user ${user.id}`);
+
+  // Try farm_user_roles table with user_id filter first
+  const { data: roleData, error: roleError } = await supabase
+    .from('farm_user_roles')
+    .select('farm_id')
+    .eq('user_id', user.id)
+    .limit(1)
+    .single();
+
+  if (roleError && roleError.code !== 'PGRST116') {
+    console.error('[getFarmId] Error checking farm_user_roles:', roleError);
+  }
+
+  if (!roleError && roleData?.farm_id) {
+    console.log(`[getFarmId] Found existing farm linking: ${roleData.farm_id}`);
+    return roleData.farm_id;
+  }
+
+  console.log('[getFarmId] No existing farm linking found. Creating a new farm...');
+  
+  // Fallback: If farm doesn't exist, auto-create a default one for this user
+  const { data: newFarmData, error: insertError } = await supabase
+    .from('farm')
+    .insert([{ name: 'Main Farm' }])
+    .select('id');
+  
+  const newFarm = newFarmData?.[0];
+
+  if (insertError) {
+    console.error('[getFarmId] Supabase farm insert error:', insertError);
+  }
+
+  if (!newFarm?.id) {
+    console.error('[getFarmId] Farm inserted but no ID returned (RLS blocked read?). Attempting fallback query...');
+    // Last resort fallback
+    const { data: anyFarm, error: anyFarmError } = await supabase.from('farm').select('id').limit(1).single();
+    if (anyFarmError) {
+       console.error('[getFarmId] Any farm fallback query failed:', anyFarmError);
+    }
+    return anyFarm?.id || null;
+  }
+
+  console.log(`[getFarmId] Created new farm: ${newFarm.id}. Linking to user...`);
+
+  // Link the user to the new farm as an owner
+  const { error: linkError } = await supabase.from('farm_user_roles').insert([{
+    farm_id: newFarm.id,
+    user_id: user.id,
+    role: 'owner'
+  }]);
+
+  if (linkError) {
+    console.error('[getFarmId] Failed to link user to new farm:', linkError);
+    // Even if link fails, we return the farm so the operation can proceed
+  } else {
+    console.log(`[getFarmId] Successfully linked user to farm.`);
+  }
+
+  return newFarm.id;
+}
+
+/** Fetch or create a default financial account for the farm. */
+async function getFinancialAccountId(farmId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('financial_accounts')
+    .select('id')
+    .eq('farm_id', farmId)
+    .limit(1)
+    .single();
+
+  if (!error && data?.id) return data.id;
+
+  const { data: newAccount, error: insertError } = await supabase
+    .from('financial_accounts')
+    .insert([{ farm_id: farmId, name: 'Main Account', account_type: 'Cash' }])
+    .select('id')
+    .single();
+
+  if (insertError) {
+    console.error('[getFinancialAccountId] Failed to create default account:', insertError);
+    return null;
+  }
+
+  return newAccount?.id || null;
 }
 
 export const dbService = {
@@ -103,15 +199,23 @@ export const dbService = {
   },
 
   async createField(item: DbObject): Promise<DbObject | null> {
+    const farmId = await getFarmId();
+    if (!farmId) {
+      console.error('[createField] No farm_id found — cannot insert field.');
+      return null;
+    }
+
     const fieldPayload: DbObject = {
+      farm_id: farmId,
       name: item.title,
       area_ha:
         typeof item.area === 'string' ? Number(item.area.replace(' ha', '')) || null : null,
       notes: item.crop,
     };
+
     const { data, error } = await supabase.from('fields').insert([fieldPayload]).select();
     if (error) {
-      console.error('Supabase Field Insert Error:', error);
+      console.error('[createField] Supabase error:', JSON.stringify(error, null, 2));
       return null;
     }
     return {
@@ -181,15 +285,21 @@ export const dbService = {
   },
 
   async createLivestock(item: DbObject): Promise<DbObject | null> {
-    const typeId = await getOrCreateLivestockType((item.type as string) || 'Livestock');
+    const farmId = await getFarmId();
+    if (!farmId) {
+      console.error('[createLivestock] No farm_id found — cannot insert livestock.');
+      return null;
+    }
+
+    const typeId = await getOrCreateLivestockType((item.type as string) || 'Livestock', farmId);
     const payload: DbObject = {
+      farm_id: farmId,
       name: item.name,
       livestock_type_id: typeId,
-      external_tag: item.external_tag || null,
     };
     const { data, error } = await supabase.from('livestock_units').insert([payload]).select();
     if (error) {
-      console.error('Supabase Livestock Insert Error:', error);
+      console.error('Supabase Livestock Insert Error:', JSON.stringify(error, null, 2));
       return null;
     }
     return {
@@ -207,8 +317,11 @@ export const dbService = {
     const payload: DbObject = {};
     if (updates.name) payload.name = updates.name;
     if (updates.type) {
-      const typeId = await getOrCreateLivestockType(updates.type as string);
-      if (typeId) payload.livestock_type_id = typeId;
+      const farmId = await getFarmId();
+      if (farmId) {
+        const typeId = await getOrCreateLivestockType(updates.type as string, farmId);
+        if (typeId) payload.livestock_type_id = typeId;
+      }
     }
 
     const { data, error } = await supabase.from('livestock_units').update(payload).eq('id', id).select();
@@ -254,7 +367,14 @@ export const dbService = {
   },
 
   async createInventoryItem(item: DbObject): Promise<DbObject | null> {
+    const farmId = await getFarmId();
+    if (!farmId) {
+      console.error('[createInventoryItem] No farm_id found.');
+      return null;
+    }
+
     const payload: DbObject = {
+      farm_id: farmId,
       name: item.name,
       item_type: item.category,
       sku: item.sku || null,
@@ -328,7 +448,21 @@ export const dbService = {
   },
 
   async createTransaction(tx: DbObject): Promise<DbObject | null> {
+    const farmId = await getFarmId();
+    if (!farmId) {
+      console.error('[createTransaction] No farm_id found — cannot insert transaction.');
+      return null;
+    }
+
+    const accountId = await getFinancialAccountId(farmId);
+    if (!accountId) {
+      console.error('[createTransaction] No account_id found — cannot insert transaction.');
+      return null;
+    }
+
     const payload: DbObject = {
+      farm_id: farmId,
+      account_id: accountId,
       transaction_type: tx.type,
       amount: tx.amount,
       memo: tx.description,
@@ -338,7 +472,7 @@ export const dbService = {
     };
     const { data, error } = await supabase.from('financial_transactions').insert([payload]).select();
     if (error) {
-      console.error('Supabase Transaction Insert Error:', error);
+      console.error('Supabase Transaction Insert Error:', JSON.stringify(error, null, 2));
       return null;
     }
     const created = data?.[0];
@@ -421,8 +555,15 @@ export const dbService = {
   },
 
   async createTask(task: DbObject): Promise<DbObject | null> {
+    const farmId = await getFarmId();
+    if (!farmId) {
+      console.error('[createTask] No farm_id found.');
+      return null;
+    }
+
     const statusId = await getTaskStatusId((task.status as string) || 'pending');
     const payload: DbObject = {
+      farm_id: farmId,
       title: task.title,
       due_date: task.due_date,
       created_by: task.created_by || null,
@@ -473,4 +614,67 @@ export const dbService = {
     }
     return true;
   },
+
+  async getFarmProfile(): Promise<{name: string, location?: string} | null> {
+    const farmId = await getFarmId();
+    if (!farmId) return null;
+    const { data, error } = await supabase.from('farm').select('name, location').eq('id', farmId).single();
+    if (error) return null;
+    return data as any;
+  },
+
+  async getFarmTeam(): Promise<any[]> {
+    const farmId = await getFarmId();
+    if (!farmId) return [];
+    const { data, error } = await supabase
+      .from('farm_user_roles')
+      .select('role, users(email)')
+      .eq('farm_id', farmId);
+    if (error) return [];
+    return data || [];
+  },
+
+  async getReportsSummary(): Promise<any> {
+    const farmId = await getFarmId();
+    if (!farmId) return null;
+
+    // Get finance
+    const { data: tx } = await supabase.from('financial_transactions').select('amount, transaction_type, occurred_on').eq('farm_id', farmId);
+    
+    // Group tx by month
+    const financeMap: Record<string, any> = {};
+    (tx || []).forEach((t: any) => {
+      const date = new Date(t.occurred_on);
+      const month = date.toLocaleString('default', { month: 'short' });
+      if (!financeMap[month]) financeMap[month] = { date: month, income: 0, expense: 0 };
+      if (t.transaction_type === 'income') financeMap[month].income += Number(t.amount);
+      else financeMap[month].expense += Number(t.amount);
+    });
+
+    // Get inventory
+    const { data: inv } = await supabase.from('inventory_items').select('item_type, qty').eq('farm_id', farmId);
+    const invMap: Record<string, number> = {};
+    (inv || []).forEach((i: any) => {
+      const cat = i.item_type || 'Other';
+      invMap[cat] = (invMap[cat] || 0) + Number(i.qty || 0);
+    });
+    const inventory = Object.entries(invMap).map(([name, value]) => ({ name, value }));
+
+    // Get crops
+    const { count: fields } = await supabase.from('fields').select('*', { count: 'exact', head: true }).eq('farm_id', farmId);
+    const { data: fieldData } = await supabase.from('fields').select('area_ha').eq('farm_id', farmId);
+    const area = (fieldData || []).reduce((sum: number, f: any) => sum + Number(f.area_ha || 0), 0);
+
+    // Get livestock
+    const { data: liveData } = await supabase.from('livestock_units').select('count, status').eq('farm_id', farmId);
+    const totalLive = (liveData || []).reduce((sum: number, l: any) => sum + Number(l.count || 0), 0);
+    const healthyLive = (liveData || []).filter((l: any) => l.status === 'healthy').length;
+
+    return {
+      finance: Object.values(financeMap),
+      inventory,
+      crops: { fields: fields || 0, area },
+      livestock: { total: totalLive, healthy: healthyLive, herds: liveData?.length || 0 }
+    };
+  }
 };

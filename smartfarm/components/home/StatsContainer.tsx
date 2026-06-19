@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { TrendingUp, TrendingDown, Wallet, CalendarClock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CalendarClock, Wheat, Beef } from 'lucide-react';
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -13,13 +13,15 @@ const card: Variants = {
   show: { opacity: 1, y: 0, transition: { ease: 'easeOut' as const, duration: 0.4 } },
 };
 
-function StatCard({ title, value, type }: { title: string; value: string, type: 'income' | 'expense' | 'net' | 'tasks' }) {
+function StatCard({ title, value, type }: { title: string; value: string, type: 'income' | 'expense' | 'net' | 'tasks' | 'crops' | 'livestock' }) {
   const getIcon = () => {
     switch (type) {
       case 'income': return <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
       case 'expense': return <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-400" />;
       case 'net': return <Wallet className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />;
       case 'tasks': return <CalendarClock className="w-5 h-5 text-amber-600 dark:text-amber-400" />;
+      case 'crops': return <Wheat className="w-5 h-5 text-green-600 dark:text-green-400" />;
+      case 'livestock': return <Beef className="w-5 h-5 text-rose-600 dark:text-rose-400" />;
     }
   };
 
@@ -29,6 +31,8 @@ function StatCard({ title, value, type }: { title: string; value: string, type: 
       case 'expense': return 'bg-rose-500/10 border-rose-500/20';
       case 'net': return 'bg-indigo-500/10 border-indigo-500/20';
       case 'tasks': return 'bg-amber-500/10 border-amber-500/20';
+      case 'crops': return 'bg-green-500/10 border-green-500/20';
+      case 'livestock': return 'bg-rose-500/10 border-rose-500/20';
     }
   };
 
@@ -45,13 +49,15 @@ function StatCard({ title, value, type }: { title: string; value: string, type: 
   );
 }
 
-export default function StatsContainer({ data }: { data: { income: string; expense: string; net: string; tasks: string } }) {
+export default function StatsContainer({ data }: { data: { income: string; expense: string; net: string; tasks: string; crops?: string; livestock?: string } }) {
   return (
-    <motion.div initial="hidden" animate="show" variants={container} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <motion.div initial="hidden" animate="show" variants={container} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
       <StatCard title="Total Income" value={data.income} type="income" />
       <StatCard title="Total Expense" value={data.expense} type="expense" />
       <StatCard title="Net Cash Flow" value={data.net} type="net" />
       <StatCard title="Pending Tasks" value={data.tasks} type="tasks" />
+      <StatCard title="Total Fields" value={data.crops || '0'} type="crops" />
+      <StatCard title="Total Animals" value={data.livestock || '0'} type="livestock" />
     </motion.div>
   );
 }

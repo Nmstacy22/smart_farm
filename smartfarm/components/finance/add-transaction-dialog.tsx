@@ -27,12 +27,13 @@ type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 interface AddTransactionDialogProps {
   categories: { id: string; name: string; type: 'income' | 'expense' }[];
-  onAddTransaction: (values: any) => Promise<void>;
+  onAddTransaction: (values: any) => Promise<boolean>;
 }
 
 export function AddTransactionDialog({ categories, onAddTransaction }: AddTransactionDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const {
     register,
@@ -59,27 +60,34 @@ export function AddTransactionDialog({ categories, onAddTransaction }: AddTransa
   // Reset category if type changes
   useEffect(() => {
     setValue("category_id", "");
-  }, [selectedType, setValue]);
+    setErrorMsg("");
+  }, [selectedType, setValue, open]);
 
   // Filter categories by selected type
   const filteredCategories = categories.filter(c => c.type === selectedType);
 
   const onSubmit = async (data: TransactionFormValues) => {
+    setErrorMsg("");
     setIsSubmitting(true);
     try {
-      await onAddTransaction(data);
-      setOpen(false);
-      reset({
-        type: "expense",
-        amount: 0,
-        category_id: "",
-        description: "",
-        date: new Date().toISOString().split('T')[0],
-        payment_method: "cash",
-        status: "paid"
-      });
+      const success = await onAddTransaction(data);
+      if (success) {
+        setOpen(false);
+        reset({
+          type: "expense",
+          amount: 0,
+          category_id: "",
+          description: "",
+          date: new Date().toISOString().split('T')[0],
+          payment_method: "cash",
+          status: "paid"
+        });
+      } else {
+        setErrorMsg("Failed to save transaction. Please make sure your account is fully set up.");
+      }
     } catch (error) {
       console.error("Failed to submit transaction:", error);
+      setErrorMsg("An unexpected error occurred.");
     } finally {
       setIsSubmitting(false);
     }
@@ -98,6 +106,12 @@ export function AddTransactionDialog({ categories, onAddTransaction }: AddTransa
           <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50">New Transaction Record</DialogTitle>
         </DialogHeader>
         
+        {errorMsg && (
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 text-sm p-3 rounded-lg mt-2 font-medium">
+            {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             {/* Transaction Type */}

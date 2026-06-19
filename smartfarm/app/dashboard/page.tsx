@@ -13,17 +13,20 @@ import { Loader2 } from 'lucide-react';
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [reports, setReports] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [txs, tsk] = await Promise.all([
+        const [txs, tsk, reps] = await Promise.all([
           dbService.getTransactions(),
           dbService.getTasks(),
+          dbService.getReportsSummary()
         ]);
         setTransactions(txs);
         setTasks(tsk);
+        setReports(reps);
       } catch (e) {
         console.error('Failed to load dashboard data:', e);
       } finally {
@@ -55,8 +58,10 @@ export default function DashboardPage() {
       expense: formatFCFA(expense),
       net: formatFCFA(net),
       tasks: String(pendingTasks),
+      crops: reports?.crops?.fields ? String(reports.crops.fields) : '0',
+      livestock: reports?.livestock?.total ? String(reports.livestock.total) : '0'
     };
-  }, [transactions, tasks]);
+  }, [transactions, tasks, reports]);
 
   const chartData = useMemo(() => {
     const grouped = transactions.reduce((acc, t) => {

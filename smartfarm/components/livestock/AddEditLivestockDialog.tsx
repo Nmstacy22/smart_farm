@@ -20,7 +20,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   livestock?: Livestock | null;
-  onSave: (livestock: Livestock) => Promise<void>;
+  onSave: (livestock: Livestock) => Promise<boolean>;
 };
 
 export default function AddEditLivestockDialog({ open, onOpenChange, livestock, onSave }: Props) {
@@ -31,6 +31,7 @@ export default function AddEditLivestockDialog({ open, onOpenChange, livestock, 
   const [feed, setFeed] = useState('');
   const [healthCheck, setHealthCheck] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (livestock) {
@@ -48,14 +49,16 @@ export default function AddEditLivestockDialog({ open, onOpenChange, livestock, 
       setFeed('');
       setHealthCheck(new Date().toISOString().split('T')[0]);
     }
+    setErrorMsg('');
   }, [livestock, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
+    setErrorMsg('');
     setSubmitting(true);
-    await onSave({
+    const success = await onSave({
       id: livestock?.id,
       name,
       type,
@@ -65,7 +68,12 @@ export default function AddEditLivestockDialog({ open, onOpenChange, livestock, 
       health_check: healthCheck,
     });
     setSubmitting(false);
-    onOpenChange(false);
+
+    if (success) {
+      onOpenChange(false);
+    } else {
+      setErrorMsg('Failed to save livestock. Please make sure your account is fully set up.');
+    }
   };
 
   return (
@@ -79,6 +87,12 @@ export default function AddEditLivestockDialog({ open, onOpenChange, livestock, 
             Define headcounts, feed requirements, and health check-ups for animal management.
           </DialogDescription>
         </DialogHeader>
+
+        {errorMsg && (
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 text-sm p-3 rounded-lg mt-2 font-medium">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1">
