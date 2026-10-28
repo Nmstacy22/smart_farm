@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { User, ChevronDown } from "lucide-react";
 
-type Role = "owner" | "manager" | "worker";
+export type Role = "owner" | "manager" | "worker";
 
 export default function UserCard({
   user,
