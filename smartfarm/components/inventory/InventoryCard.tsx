@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Box, AlertTriangle, Edit2, Trash2, Plus, Minus } from "lucide-react";
+import { AlertTriangle, Edit2, Trash2, Plus, Minus } from "lucide-react";
 import Image from "next/image";
 
 type Item = {

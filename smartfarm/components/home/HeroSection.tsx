@@ -4,7 +4,6 @@ import { motion, type Variants } from 'framer-motion';
 import { dbService } from '../../lib/services/db';
 import { useFarm } from '../../lib/hooks/useFarm';
 import { CloudSun, Sunrise, Sunset, Moon } from 'lucide-react';
-import Image from 'next/image';
 
 const container: Variants = {
   hidden: { opacity: 0 },

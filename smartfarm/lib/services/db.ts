@@ -623,7 +623,7 @@ export const dbService = {
     const userIds = [
       ...new Set(data.map((t: any) => t.task_assignments?.[0]?.worker_user_id).filter(Boolean))
     ];
-    let profilesMap: Record<string, string> = {};
+    const profilesMap: Record<string, string> = {};
     if (userIds.length > 0) {
       const { data: profiles } = await supabase.from('user_profile').select('id, full_name').in('id', userIds);
       if (profiles) {

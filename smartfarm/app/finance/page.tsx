@@ -9,7 +9,7 @@ import { FinanceChart } from '../../components/finance/finance-chart';
 import { dbService } from '../../lib/services/db';
 import { useFarm } from '../../lib/hooks/useFarm';
 import { motion } from 'framer-motion';
-import { Loader2, Wallet, BarChart3, List, Lock } from 'lucide-react';
+import { Loader2, BarChart3, List, Lock } from 'lucide-react';
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 14 },

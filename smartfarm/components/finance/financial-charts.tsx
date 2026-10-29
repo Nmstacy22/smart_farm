@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatXAF } from "@/lib/utils";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
-} from "recharts";
+  PieChart, Pie, Cell } from "recharts";
 import { Transaction } from "./financial-summary";
-import { Calendar, DollarSign, PieChart as PieIcon } from "lucide-react";
+import { Calendar, PieChart as PieIcon } from "lucide-react";
 
 interface FinancialChartsProps {
   transactions: Transaction[];

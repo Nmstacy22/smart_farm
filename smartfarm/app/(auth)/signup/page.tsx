@@ -29,7 +29,7 @@ export default function SignupPage() {
   const isPasswordStrong = (v: string) => v.length >= 8 && /[A-Z]/.test(v) && /[0-9]/.test(v);
 
   useEffect(() => {
-    try { document.title = 'Sign Up — SmartFarm'; } catch (_) {}
+    try { document.title = 'Sign Up — SmartFarm'; } catch { /* not in a browser */ }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, Circle, Clock, Flag, User } from "lucide-react";
+import { CheckCircle, Circle, Clock, User } from "lucide-react";
 
 type Task = {
   id: string;

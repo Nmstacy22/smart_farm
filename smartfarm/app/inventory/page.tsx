@@ -5,7 +5,7 @@ import DashboardLayout from "../../components/layout/DashboardLayout";
 import AddEditItemDialog from "../../components/inventory/AddEditItemDialog";
 import InventoryCard from "../../components/inventory/InventoryCard";
 import { dbService } from "../../lib/services/db";
-import { Plus, Box, Search, AlertTriangle, Layers, Package } from "lucide-react";
+import { Plus, Box, Search, AlertTriangle, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const categoryConfig: Record<string, { color: string; bg: string; border: string; dot: string }> = {

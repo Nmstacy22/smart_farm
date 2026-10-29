@@ -1,8 +1,7 @@
 'use client';
 
-import { Card, CardContent } from "@/components/ui/card";
 import { formatXAF } from "@/lib/utils";
-import { ArrowUpRight, ArrowDownRight, Wallet, Clock, TrendingUp } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Clock, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 
 export type Transaction = {

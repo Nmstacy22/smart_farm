@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../components/providers/AuthProvider';
 import {
   Sprout, Lock, Mail, ArrowRight, AlertCircle,
-  ShieldCheck, Sparkles, Globe, Wheat, BarChart3, Users,
-} from 'lucide-react';
+  ShieldCheck, Globe, Wheat, BarChart3, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
@@ -21,7 +20,7 @@ export default function LoginPage() {
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   useEffect(() => {
-    try { document.title = 'Sign In — SmartFarm'; } catch (_) {}
+    try { document.title = 'Sign In — SmartFarm'; } catch { /* not in a browser */ }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

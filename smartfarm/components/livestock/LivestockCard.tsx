@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Beef, CalendarClock, Wheat, Edit3, Trash2, ShieldAlert } from "lucide-react";
+import { Beef, CalendarClock, Wheat, Edit3, Trash2 } from "lucide-react";
 
 type Livestock = {
   id: string;

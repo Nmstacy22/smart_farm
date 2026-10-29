@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Globe, Layers, TrendingUp, ShieldCheck, Sparkles, ArrowRight, CheckCircle2, CalendarClock, Sprout } from 'lucide-react';
+import { Globe, Layers, TrendingUp, Sparkles, ArrowRight, CheckCircle2, CalendarClock, Sprout } from 'lucide-react';
 
 const featureCards = [
   {

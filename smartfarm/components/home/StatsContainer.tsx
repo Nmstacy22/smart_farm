@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { TrendingUp, TrendingDown, Wallet, CalendarClock, Wheat, Beef } from 'lucide-react';
 
