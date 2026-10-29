@@ -13,7 +13,7 @@ export function PagePanel({ title, subtitle, actions, children }: {
 }) {
   return (
     <div className="space-y-8 pb-10">
-      <div className="grid gap-6 rounded-[2rem] border border-slate-200/50 dark:border-zinc-800/50 bg-white/80 dark:bg-zinc-950/70 backdrop-blur-xl p-4 sm:p-6 shadow-sm">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 rounded-[2rem] border border-slate-200/50 dark:border-zinc-800/50 bg-white/80 dark:bg-zinc-950/70 backdrop-blur-xl p-4 sm:p-6 shadow-sm">
         <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{title}</h1>
@@ -50,11 +50,11 @@ export function StatTile({ label, value, hint, icon: Icon, tone = 'emerald' }: {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -3 }}
-      className={`sf-card p-5 border ${t.border} transition-all`}
+      className={`sf-card min-w-0 p-4 sm:p-5 border ${t.border} transition-all`}
     >
       <div className="flex items-center justify-between mb-3 gap-2">
-        <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">{label}</span>
-        <div className={`p-2 rounded-lg ${t.bg} ${t.color}`}><Icon className="w-4 h-4" /></div>
+        <span className="min-w-0 text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">{label}</span>
+        <div className={`shrink-0 p-2 rounded-lg ${t.bg} ${t.color}`}><Icon className="w-4 h-4" /></div>
       </div>
       <div className="text-2xl font-extrabold text-slate-900 dark:text-white truncate">{value}</div>
       {hint && <div className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">{hint}</div>}

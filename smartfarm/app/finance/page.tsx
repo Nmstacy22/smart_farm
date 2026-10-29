@@ -17,7 +17,9 @@ const sectionVariants = {
 };
 
 export default function FinancePage() {
-  const { currentUserRole } = useFarm();
+  const { currentUserRole, loading: farmLoading } = useFarm();
+  // The role reads as 'worker' until the farm has loaded, so wait before deciding
+  const canView = !farmLoading && currentUserRole !== 'worker';
   const [txs, setTxs] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,8 @@ export default function FinancePage() {
     }
   }
 
-  useEffect(() => { loadData(); }, []);
+  // Workers can't read finance data (RLS), so don't query it for them
+  useEffect(() => { if (canView) loadData(); }, [canView]);
 
   async function handleDelete(id: string) {
     if (confirm('Delete this transaction record?')) {
@@ -74,7 +77,7 @@ export default function FinancePage() {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [txs]);
 
-  if (loading) {
+  if (canView && loading) {
     return (
       <DashboardLayout>
         <div className="flex h-[70vh] w-full flex-col items-center justify-center gap-4">
@@ -82,6 +85,16 @@ export default function FinancePage() {
             <Loader2 className="w-7 h-7 text-emerald-500 animate-spin" />
           </div>
           <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400">Loading financial data…</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (farmLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-[70vh] w-full items-center justify-center">
+          <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
         </div>
       </DashboardLayout>
     );

@@ -76,20 +76,26 @@ export function summarise(series: Series): SeriesSummary {
   };
 }
 
-/** Chart rows: one per date, one column per market (average if several entries that day). */
+export const ALL_MARKETS = 'All markets';
+
+/**
+ * Chart rows: one per date, with one column per market (average if several entries that day)
+ * plus an "All markets" average, so a trend shows even when each market has only one record.
+ */
 export function chartRows(series: Series, markets: string[]) {
-  const byDate = new Map<string, Record<string, number[]>>();
+  const byDate = new Map<string, { all: number[]; byMarket: Record<string, number[]> }>();
   for (const e of series.entries) {
+    const row = byDate.get(e.observed_on) || { all: [], byMarket: {} };
+    row.all.push(e.price);
     const name = e.market || 'Unspecified';
-    if (!markets.includes(name)) continue;
-    const row = byDate.get(e.observed_on) || {};
-    row[name] = [...(row[name] || []), e.price];
+    if (markets.includes(name)) row.byMarket[name] = [...(row.byMarket[name] || []), e.price];
     byDate.set(e.observed_on, row);
   }
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, row]) => ({
       date,
-      ...Object.fromEntries(Object.entries(row).map(([m, xs]) => [m, Math.round(average(xs)!)])),
+      [ALL_MARKETS]: Math.round(average(row.all)!),
+      ...Object.fromEntries(Object.entries(row.byMarket).map(([m, xs]) => [m, Math.round(average(xs)!)])),
     }));
 }

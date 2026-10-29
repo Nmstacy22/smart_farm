@@ -9,7 +9,7 @@ import { PagePanel, StatTile, EmptyState, Spinner, primaryButtonClass, sectionCa
 import AddMarketPriceDialog from "../../components/market/AddMarketPriceDialog";
 import { dbService } from "../../lib/services/db";
 import { useFarm } from "../../lib/hooks/useFarm";
-import { buildSeries, chartRows, formatFcfa, summarise } from "../../lib/market/stats";
+import { ALL_MARKETS, buildSeries, chartRows, formatFcfa, summarise } from "../../lib/market/stats";
 import type { MarketPrice, TeamMember } from "../../lib/types";
 
 const LINE_COLORS = ["#10b981", "#0ea5e9", "#f59e0b", "#8b5cf6"];
@@ -148,6 +148,7 @@ export default function MarketPage() {
                       <YAxis tick={{ fontSize: 11 }} stroke="currentColor" className="text-slate-400" width={56} tickFormatter={(v) => Number(v).toLocaleString("en-US")} />
                       <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12 }} labelFormatter={(d) => formatDate(String(d))} formatter={(v) => formatFcfa(Number(v))} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Line dataKey={ALL_MARKETS} type="monotone" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
                       {chartMarkets.map((m, i) => (
                         <Line key={m} dataKey={m} type="monotone" stroke={LINE_COLORS[i]} strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
                       ))}

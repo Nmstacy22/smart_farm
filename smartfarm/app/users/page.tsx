@@ -139,7 +139,7 @@ export default function TeamPage() {
           <StatTile label="Missing phone" value={stats.noPhone} hint="Can't receive SMS" icon={PhoneOff} tone={stats.noPhone > 0 ? "amber" : "slate"} />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-3 gap-6">
           <div className="space-y-6 lg:order-2">
             {!farmLoading && isManager && (
               <section className={sectionCardClass}><InviteCodeCard /></section>

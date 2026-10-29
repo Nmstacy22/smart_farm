@@ -84,7 +84,8 @@ export default function WeatherPage() {
     };
   }, [report]);
   const chartData = useMemo(() => (report?.slots || []).slice(0, 16).map((s) => ({
-    label: new Date(s.time).toLocaleString("en-GB", { weekday: "short", hour: "2-digit" }),
+    // e.g. "Thu 14h" (toLocaleString would give "Thu, 14", which reads like a date)
+    label: `${new Date(s.time).toLocaleDateString("en-GB", { weekday: "short" })} ${String(new Date(s.time).getHours()).padStart(2, "0")}h`,
     rain: Math.round(s.rainMm * 10) / 10,
     temp: s.temp,
   })), [report]);
@@ -163,7 +164,7 @@ export default function WeatherPage() {
               <StatTile label="Field alerts" value={advice.filter((a) => a.level === "warning").length} icon={AlertTriangle} tone={advice.some((a) => a.level === "warning") ? "amber" : "slate"} />
             </div>
 
-            <div className="grid lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-5 gap-6">
               {/* Farm advice */}
               <section className={`${sectionCardClass} lg:col-span-2`}>
                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Field advice</h2>
@@ -213,7 +214,7 @@ export default function WeatherPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={chartData} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.08} vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="currentColor" className="text-slate-400" interval={2} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="currentColor" className="text-slate-400" interval="preserveStartEnd" minTickGap={24} />
                         <YAxis yAxisId="rain" tick={{ fontSize: 10 }} stroke="currentColor" className="text-slate-400" unit="mm" />
                         <YAxis yAxisId="temp" orientation="right" tick={{ fontSize: 10 }} stroke="currentColor" className="text-slate-400" unit="°" />
                         <Tooltip

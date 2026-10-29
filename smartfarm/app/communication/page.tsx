@@ -49,13 +49,19 @@ export default function CommunicationPage() {
 
   async function post(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!draft.trim()) return;
+    const text = draft;
+    if (!text.trim()) return;
+    // Clear the box straight away so typing the next message isn't wiped when this one finishes
+    setDraft("");
     setPosting(true);
     setError("");
-    const ok = await dbService.postMessage(draft, announce && isManager);
+    const ok = await dbService.postMessage(text, announce && isManager);
     setPosting(false);
-    if (!ok) { setError("Could not post your message. Try again."); return; }
-    setDraft("");
+    if (!ok) {
+      setDraft((current) => current || text); // give the text back unless they've started a new one
+      setError("Could not post your message. Try again.");
+      return;
+    }
     setAnnounce(false);
     reload();
   }
@@ -74,7 +80,7 @@ export default function CommunicationPage() {
           <StatTile label="Team members" value={members.length} icon={Users} tone="sky" />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {/* Pinned announcements */}
             {announcements.length > 0 && (
