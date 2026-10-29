@@ -807,26 +807,44 @@ export const dbService = {
     }));
   },
 
+  /** The active farm's invite code (created on first use). Owners/managers only; null otherwise. */
+  async getJoinCode(): Promise<string | null> {
+    const farmId = await getFarmId();
+    if (!farmId) return null;
+    const { data, error } = await supabase.rpc('get_join_code', { p_farm_id: farmId });
+    if (error) {
+      console.error('Failed to load invite code:', error);
+      return null;
+    }
+    return data;
+  },
+
+  /** Replace the active farm's invite code so the old one stops working. */
+  async regenerateJoinCode(): Promise<string | null> {
+    const farmId = await getFarmId();
+    if (!farmId) return null;
+    const { data, error } = await supabase.rpc('regenerate_join_code', { p_farm_id: farmId });
+    if (error) {
+      console.error('Failed to regenerate invite code:', error);
+      return null;
+    }
+    return data;
+  },
+
   async joinFarm(joinCode: string): Promise<{ success: boolean; error?: string }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    // Non-members can't read the farm under RLS, so join_farm validates and inserts server-side.
-    // The join code is currently the farm's UUID; reject anything else before calling the database,
-    // since Postgres would otherwise fail with a cryptic "invalid input syntax for type uuid".
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinCode)) {
-      return { success: false, error: 'Invalid Join Code' };
-    }
-
-    const { error } = await supabase.rpc('join_farm', { p_farm_id: joinCode });
-    if (error) {
+    // Non-members can't read the farm under RLS, so join_farm looks up the invite code server-side
+    const { data: farmId, error } = await supabase.rpc('join_farm', { p_code: joinCode });
+    if (error || !farmId) {
       // join_farm raises these messages itself; anything else is an unexpected failure
       const known = ['Invalid Join Code', 'You are already a member of this farm'];
-      return { success: false, error: known.includes(error.message) ? error.message : 'Failed to join farm' };
+      return { success: false, error: error && known.includes(error.message) ? error.message : 'Failed to join farm' };
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('active_farm_id', joinCode);
+      localStorage.setItem('active_farm_id', farmId);
     }
 
     return { success: true };

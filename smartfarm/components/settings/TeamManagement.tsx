@@ -1,21 +1,37 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { dbService } from '../../lib/services/db';
-import { Copy, Check, UserPlus, Loader2 } from 'lucide-react';
+import { Copy, Check, UserPlus, Loader2, RefreshCw } from 'lucide-react';
 
 export function TeamManagement({ team, farmId }: { team: any[], farmId?: string }) {
   const [copied, setCopied] = useState(false);
+  const [joinCode, setJoinCode] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [joinSuccess, setJoinSuccess] = useState('');
 
-  const handleCopy = () => {
+  // The invite code is separate from the farm ID and only readable by owners/managers
+  useEffect(() => {
     if (!farmId) return;
-    navigator.clipboard.writeText(farmId);
+    dbService.getJoinCode().then(setJoinCode);
+  }, [farmId]);
+
+  const handleCopy = () => {
+    if (!joinCode) return;
+    navigator.clipboard.writeText(joinCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRegenerate = async () => {
+    if (!confirm('Create a new invite code? The current code will stop working.')) return;
+    setRegenerating(true);
+    const code = await dbService.regenerateJoinCode();
+    if (code) setJoinCode(code);
+    setRegenerating(false);
   };
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -62,11 +78,19 @@ export function TeamManagement({ team, farmId }: { team: any[], farmId?: string 
         {farmId && (
           <div>
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Invite Members</h4>
-            <p className="text-xs text-slate-500 mb-2">Share this code with others so they can join your farm.</p>
+            <p className="text-xs text-slate-500 mb-2">Share this code with others so they can join your farm as workers.</p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 block p-2 text-xs bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-800 dark:text-slate-300 overflow-x-auto whitespace-nowrap">
-                {farmId}
+              <code className="flex-1 block p-2 text-sm font-bold tracking-widest bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-800 dark:text-slate-300 overflow-x-auto whitespace-nowrap">
+                {joinCode ?? '…'}
               </code>
+              <button
+                onClick={handleRegenerate}
+                disabled={regenerating || !joinCode}
+                className="p-2 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors cursor-pointer"
+                title="Create a new code"
+              >
+                <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
+              </button>
               <button 
                 onClick={handleCopy}
                 className="p-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
@@ -81,13 +105,13 @@ export function TeamManagement({ team, farmId }: { team: any[], farmId?: string 
         {/* Join a farm */}
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Join a Farm</h4>
-          <p className="text-xs text-slate-500 mb-2">Enter a farm code to join an existing farm as a worker.</p>
+          <p className="text-xs text-slate-500 mb-2">Enter an invite code to join an existing farm as a worker.</p>
           <form onSubmit={handleJoin} className="flex gap-2">
             <input
               type="text"
               value={joinCodeInput}
               onChange={(e) => setJoinCodeInput(e.target.value)}
-              placeholder="Paste farm code here..."
+              placeholder="e.g. 7F3A9-C21B0"
               className="flex-1 p-2 text-xs border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500"
             />
             <button

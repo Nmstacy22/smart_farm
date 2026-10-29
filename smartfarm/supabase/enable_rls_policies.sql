@@ -1,6 +1,7 @@
 -- ==========================================================
 -- SMARTFARM SQL: ENABLE ROW LEVEL SECURITY (PRODUCTION)
 -- Run this whole script in the Supabase SQL Editor. It is safe to re-run.
+-- Run supabase/schema_additions.sql first: the functions below use its tables.
 -- It replaces supabase/fix_rls_policies.sql (which disabled RLS for demos).
 --
 -- Access model (based on public.farm_user_roles):
@@ -95,41 +96,133 @@ BEGIN
 END;
 $$;
 
--- Joins the farm as a worker. The join code is currently the farm ID;
--- this will be replaced by dedicated invite codes.
-CREATE OR REPLACE FUNCTION public.join_farm(p_farm_id uuid)
+-- Invite codes live in public.farm_join_codes (see schema_additions.sql) and look like
+-- "7F3A9-C21B0": 10 hex characters from gen_random_uuid(), which is cryptographically
+-- random, so codes can't be guessed. The farm ID is no longer used to join.
+CREATE OR REPLACE FUNCTION public.sf_new_join_code()
+RETURNS text
+LANGUAGE sql VOLATILE
+SET search_path = ''
+AS $$
+  SELECT upper(substr(h, 1, 5) || '-' || substr(h, 6, 5))
+  FROM (SELECT replace(gen_random_uuid()::text, '-', '') AS h) s;
+$$;
+
+-- Returns the farm's invite code, creating one on first use. Owners/managers only.
+CREATE OR REPLACE FUNCTION public.get_join_code(p_farm_id uuid)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_code text;
+BEGIN
+  IF NOT public.sf_is_manager(p_farm_id) THEN
+    RAISE EXCEPTION 'Only farm owners and managers can view the invite code';
+  END IF;
+
+  SELECT code INTO v_code FROM public.farm_join_codes WHERE farm_id = p_farm_id;
+  IF v_code IS NULL THEN
+    INSERT INTO public.farm_join_codes (farm_id, code, created_by)
+    VALUES (p_farm_id, public.sf_new_join_code(), auth.uid())
+    RETURNING code INTO v_code;
+  END IF;
+  RETURN v_code;
+END;
+$$;
+
+-- Replaces the invite code, so a leaked code stops working. Owners/managers only.
+CREATE OR REPLACE FUNCTION public.regenerate_join_code(p_farm_id uuid)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_code text;
+BEGIN
+  IF NOT public.sf_is_manager(p_farm_id) THEN
+    RAISE EXCEPTION 'Only farm owners and managers can change the invite code';
+  END IF;
+
+  INSERT INTO public.farm_join_codes (farm_id, code, created_by)
+  VALUES (p_farm_id, public.sf_new_join_code(), auth.uid())
+  ON CONFLICT (farm_id) DO UPDATE
+    SET code = EXCLUDED.code, created_by = EXCLUDED.created_by, created_at = now()
+  RETURNING code INTO v_code;
+  RETURN v_code;
+END;
+$$;
+
+-- Joins the farm that owns the invite code, as a worker. Returns the farm ID.
+-- Earlier versions took the farm ID itself; drop that signature.
+DROP FUNCTION IF EXISTS public.join_farm(uuid);
+CREATE OR REPLACE FUNCTION public.join_farm(p_code text)
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_farm_id uuid;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM public.farm WHERE id = p_farm_id AND deleted_at IS NULL) THEN
+  -- Codes are matched case-insensitively and ignoring spaces
+  SELECT j.farm_id INTO v_farm_id
+  FROM public.farm_join_codes j
+  JOIN public.farm f ON f.id = j.farm_id AND f.deleted_at IS NULL
+  WHERE j.code = upper(replace(trim(p_code), ' ', ''));
+
+  IF v_farm_id IS NULL THEN
     RAISE EXCEPTION 'Invalid Join Code';
   END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.farm_user_roles
-    WHERE farm_id = p_farm_id AND user_id = auth.uid() AND deleted_at IS NULL
+    WHERE farm_id = v_farm_id AND user_id = auth.uid() AND deleted_at IS NULL
   ) THEN
     RAISE EXCEPTION 'You are already a member of this farm';
   END IF;
 
   INSERT INTO public.farm_user_roles (farm_id, user_id, role)
-  VALUES (p_farm_id, auth.uid(), 'worker');
+  VALUES (v_farm_id, auth.uid(), 'worker');
 
-  RETURN p_farm_id;
+  RETURN v_farm_id;
 END;
 $$;
 
 -- Functions are executable by everyone by default; restrict these to signed-in users.
 REVOKE ALL ON FUNCTION public.create_farm(text) FROM public, anon;
-REVOKE ALL ON FUNCTION public.join_farm(uuid) FROM public, anon;
+REVOKE ALL ON FUNCTION public.join_farm(text) FROM public, anon;
+REVOKE ALL ON FUNCTION public.get_join_code(uuid) FROM public, anon;
+REVOKE ALL ON FUNCTION public.regenerate_join_code(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.create_farm(text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.join_farm(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_farm(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_join_code(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.regenerate_join_code(uuid) TO authenticated;
+
+-- A farm must always keep at least one owner: block demoting or removing the last one.
+CREATE OR REPLACE FUNCTION public.sf_keep_last_owner()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF OLD.role = 'owner' AND (TG_OP = 'DELETE' OR NEW.role <> 'owner') AND NOT EXISTS (
+    SELECT 1 FROM public.farm_user_roles
+    WHERE farm_id = OLD.farm_id AND role = 'owner' AND id <> OLD.id AND deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'A farm must keep at least one owner';
+  END IF;
+  RETURN coalesce(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS sf_keep_last_owner ON public.farm_user_roles;
+CREATE TRIGGER sf_keep_last_owner
+  BEFORE UPDATE OR DELETE ON public.farm_user_roles
+  FOR EACH ROW EXECUTE FUNCTION public.sf_keep_last_owner();
 
 -- ----------------------------------------------------------
 -- 3. Remove every existing policy on the app's tables, so no
@@ -171,17 +264,21 @@ CREATE POLICY sf_delete ON public.farm FOR DELETE TO authenticated
   USING (public.sf_farm_role(id) = 'owner');
 
 -- farm_user_roles: members see their team. Owners/managers add, change and remove
--- members, but only an owner can grant the 'owner' role. Anyone can delete their
--- own row, i.e. leave a farm.
+-- members, but only an owner can grant the 'owner' role or touch an owner's row
+-- (so a manager can't demote or remove the owner). Anyone can delete their own
+-- row, i.e. leave a farm. The sf_keep_last_owner trigger stops the last owner leaving.
 CREATE POLICY sf_select ON public.farm_user_roles FOR SELECT TO authenticated
   USING (public.sf_is_member(farm_id));
 CREATE POLICY sf_insert ON public.farm_user_roles FOR INSERT TO authenticated
   WITH CHECK (public.sf_is_manager(farm_id) AND (role <> 'owner' OR public.sf_farm_role(farm_id) = 'owner'));
 CREATE POLICY sf_update ON public.farm_user_roles FOR UPDATE TO authenticated
-  USING (public.sf_is_manager(farm_id))
+  USING (public.sf_is_manager(farm_id) AND (role <> 'owner' OR public.sf_farm_role(farm_id) = 'owner'))
   WITH CHECK (public.sf_is_manager(farm_id) AND (role <> 'owner' OR public.sf_farm_role(farm_id) = 'owner'));
 CREATE POLICY sf_delete ON public.farm_user_roles FOR DELETE TO authenticated
-  USING (public.sf_is_manager(farm_id) OR user_id = auth.uid());
+  USING (
+    user_id = auth.uid()
+    OR (public.sf_is_manager(farm_id) AND (role <> 'owner' OR public.sf_farm_role(farm_id) = 'owner'))
+  );
 
 -- user_profile: has no farm_id. You see your own profile and your teammates';
 -- you can only create or edit your own.
@@ -234,5 +331,7 @@ BEGIN
 END;
 $$;
 
--- sensor_devices and sensor_measurements_raw have no farm_id: RLS is enabled
--- with no policies, so only the service role (server-side ingestion) can use them.
+-- Tables with RLS enabled but deliberately no policies, so the app can't touch them directly:
+--   * farm_join_codes: only used inside get_join_code / regenerate_join_code / join_farm.
+--   * sensor_devices, sensor_measurements_raw: no farm_id; only the service role
+--     (server-side ingestion) can use them.
