@@ -1,4 +1,7 @@
 -- ==========================================================
+-- DO NOT RUN IN PRODUCTION. This makes every farm's data public.
+-- To restore security, run supabase/enable_rls_policies.sql.
+-- ==========================================================
 -- SMARTFARM SQL: DISABLE RLS FOR PRESENTATION
 -- Run this script in the Supabase SQL Editor to temporarily turn off Row Level Security.
 -- This is intended only for demo/presentation purposes.

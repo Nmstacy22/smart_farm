@@ -17,20 +17,40 @@ async function getCount(table: string, filters: Record<string, unknown> = {}): P
   return count ?? 0;
 }
 
-async function getTaskStatusId(name: string): Promise<string | null> {
+/**
+ * Resolve a task status (e.g. 'pending', 'completed') to its id for this farm.
+ * Statuses are stored per farm and RLS hides other farms' rows, so a new farm
+ * starts with none; missing statuses are created on first use.
+ */
+async function getTaskStatusId(name: string, farmId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('task_statuses')
     .select('id')
     .eq('name', name)
+    .eq('farm_id', farmId)
     .limit(1)
     .single();
 
-  if (error) {
+  // PGRST116 = no matching row, which just means the status needs creating
+  if (error && error.code !== 'PGRST116') {
     console.error('Supabase task status lookup failed:', error);
     return null;
   }
 
-  return data?.id || null;
+  if (data?.id) return data.id;
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('task_statuses')
+    .insert([{ name, farm_id: farmId }])
+    .select('id')
+    .single();
+
+  if (insertError) {
+    console.error('Supabase task status insert failed:', insertError);
+    return null;
+  }
+
+  return inserted?.id || null;
 }
 
 async function getOrCreateLivestockType(name: string, farmId: string): Promise<string | null> {
@@ -142,28 +162,19 @@ export const dbService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data: newFarmData, error: insertError } = await supabase
-      .from('farm')
-      .insert([{ name: name || 'My Farm' }])
-      .select('id')
-      .single();
+    // create_farm (supabase/enable_rls_policies.sql) inserts the farm and the owner role together.
+    // A plain insert can't work under RLS: the creator isn't a member yet, so reading the new row back is denied.
+    const { data: farmId, error } = await supabase.rpc('create_farm', { p_name: name || 'My Farm' });
 
-    if (insertError || !newFarmData?.id) {
-      console.error('Failed to create farm:', insertError);
+    if (error || !farmId) {
+      console.error('Failed to create farm:', error);
       return null;
     }
 
-    // Link the user to the new farm as an owner
-    await supabase.from('farm_user_roles').insert([{
-      farm_id: newFarmData.id,
-      user_id: user.id,
-      role: 'owner'
-    }]);
-
     if (typeof window !== 'undefined') {
-      localStorage.setItem('active_farm_id', newFarmData.id);
+      localStorage.setItem('active_farm_id', farmId);
     }
-    return { id: newFarmData.id };
+    return { id: farmId };
   },
 
   async getOverviewStats(): Promise<{ fields: number; workers: number; tasks: number }> {
@@ -646,7 +657,7 @@ export const dbService = {
       return null;
     }
 
-    const statusId = await getTaskStatusId((task.status as string) || 'pending');
+    const statusId = await getTaskStatusId((task.status as string) || 'pending', farmId);
     const payload: DbObject = {
       farm_id: farmId,
       title: task.title,
@@ -682,7 +693,8 @@ export const dbService = {
     if (updates.title) payload.title = updates.title;
     if (updates.dueDate) payload.due_date = updates.dueDate;
     if (typeof updates.status === 'string') {
-      const statusId = await getTaskStatusId(updates.status);
+      const farmId = await getFarmId();
+      const statusId = farmId ? await getTaskStatusId(updates.status, farmId) : null;
       if (statusId) payload.status_id = statusId;
     }
 
@@ -799,23 +811,18 @@ export const dbService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    // Check if farm exists
-    const { data: farm, error: farmError } = await supabase.from('farm').select('id').eq('id', joinCode).single();
-    if (farmError || !farm) return { success: false, error: 'Invalid Join Code' };
+    // Non-members can't read the farm under RLS, so join_farm validates and inserts server-side.
+    // The join code is currently the farm's UUID; reject anything else before calling the database,
+    // since Postgres would otherwise fail with a cryptic "invalid input syntax for type uuid".
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinCode)) {
+      return { success: false, error: 'Invalid Join Code' };
+    }
 
-    // Check if already a member
-    const { data: existing } = await supabase.from('farm_user_roles').select('id').eq('farm_id', joinCode).eq('user_id', user.id).single();
-    if (existing) return { success: false, error: 'You are already a member of this farm' };
-
-    // Insert
-    const { error: insertError } = await supabase.from('farm_user_roles').insert({
-      farm_id: joinCode,
-      user_id: user.id,
-      role: 'worker'
-    });
-
-    if (insertError) {
-      return { success: false, error: 'Failed to join farm' };
+    const { error } = await supabase.rpc('join_farm', { p_farm_id: joinCode });
+    if (error) {
+      // join_farm raises these messages itself; anything else is an unexpected failure
+      const known = ['Invalid Join Code', 'You are already a member of this farm'];
+      return { success: false, error: known.includes(error.message) ? error.message : 'Failed to join farm' };
     }
 
     if (typeof window !== 'undefined') {
