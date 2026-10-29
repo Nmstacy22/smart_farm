@@ -11,3 +11,6 @@ export const LIVESTOCK_STATUS_COLORS = {
   sick: { text: "text-rose-400 bg-rose-500/10 border-rose-500/20", dot: "bg-rose-500" },
   quarantine: { text: "text-amber-400 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-500" },
 };
+
+/** E.164 phone number, e.g. +237650000000 (required for SMS). */
+export const PHONE_PATTERN = /^\+[1-9]\d{7,14}$/;

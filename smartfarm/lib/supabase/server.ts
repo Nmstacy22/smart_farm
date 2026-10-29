@@ -1,14 +1,18 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+/**
+ * Supabase client for route handlers, acting as the signed-in user (session read from cookies),
+ * so RLS policies apply exactly as in the browser. Deliberately never uses the service role key,
+ * which would bypass RLS.
+ */
 export async function createClient() {
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  // prefer using service role on server if present, otherwise use anon/publishable
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !key) {
-    throw new Error('Missing Supabase server env vars. Set  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
+    throw new Error('Missing Supabase server env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
   }
 
   return createServerClient(url, key, {
