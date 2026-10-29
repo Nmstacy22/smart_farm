@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:db": "node e2e/prepare-db.mjs && supabase start --workdir e2e -x studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,postgres-meta,supavisor,mailpit && supabase db reset --workdir e2e",
+    "test:e2e": "node e2e/run.mjs",
+    "test:e2e:stop": "supabase stop --workdir e2e"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -29,12 +32,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "supabase": "2.122.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

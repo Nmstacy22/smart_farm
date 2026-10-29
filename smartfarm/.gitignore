@@ -44,3 +44,9 @@ next-env.d.ts
 # local archives and project documents (keep out of git)
 *.zip
 *.docx
+
+# end-to-end tests
+/.next-e2e/
+/playwright-report/
+/test-results/
+/supabase/.temp/
