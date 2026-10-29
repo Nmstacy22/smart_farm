@@ -19,12 +19,21 @@ export async function GET(request: NextRequest) {
   const key = process.env.OPENWEATHER_API_KEY;
   if (!key) return Response.json(sampleWeatherReport(location));
 
-  const query = `q=${encodeURIComponent(location)}&units=metric&appid=${key}`;
   // Weather changes slowly; cache upstream responses for 10 minutes per location
-  const [currentRes, forecastRes] = await Promise.all([
-    fetch(`https://api.openweathermap.org/data/2.5/weather?${query}`, { next: { revalidate: 600 } }),
-    fetch(`https://api.openweathermap.org/data/2.5/forecast?${query}`, { next: { revalidate: 600 } }),
-  ]);
+  const fetchBoth = (q: string) => {
+    const query = `q=${encodeURIComponent(q)}&units=metric&appid=${key}`;
+    return Promise.all([
+      fetch(`https://api.openweathermap.org/data/2.5/weather?${query}`, { next: { revalidate: 600 } }),
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?${query}`, { next: { revalidate: 600 } }),
+    ]);
+  };
+
+  let [currentRes, forecastRes] = await fetchBoth(location);
+  // Farm locations are stored as "Region, Country" (e.g. "Buea, Cameroon"), and OpenWeatherMap
+  // doesn't always recognise full country names, so fall back to the part before the comma
+  if ((currentRes.status === 404 || forecastRes.status === 404) && location.includes(',')) {
+    [currentRes, forecastRes] = await fetchBoth(location.split(',')[0].trim());
+  }
 
   if (currentRes.status === 404 || forecastRes.status === 404) {
     return Response.json({ error: `Location "${location}" not found` }, { status: 404 });
