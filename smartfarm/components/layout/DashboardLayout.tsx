@@ -4,25 +4,15 @@ import MobileBottomNav from '../layout/MobileBottomNav';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Sprout, Package, Wallet, CheckSquare, LogOut, Info, ChevronRight, Wheat, Beef, BarChart, Settings } from 'lucide-react';
+import { Sprout, LogOut } from 'lucide-react';
 import { useAuth } from '../providers/AuthProvider';
 import { useFarm } from '../../lib/hooks/useFarm';
 import OnboardingView from './OnboardingView';
+import { visibleNavLinks } from './navLinks';
 
 type Props = {
   children: React.ReactNode;
 };
-
-const sidebarLinks = [
-  { href: '/dashboard', label: 'Home', icon: Home },
-  { href: '/crops', label: 'Crops', icon: Wheat },
-  { href: '/livestock', label: 'Livestock', icon: Beef },
-  { href: '/inventory', label: 'Inventory', icon: Package },
-  { href: '/finance', label: 'Finance', icon: Wallet },
-  { href: '/tasks', label: 'Tasks', icon: CheckSquare },
-  { href: '/reports', label: 'Reports', icon: BarChart },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
 
 function getInitials(email: string) {
   return email?.split('@')[0]?.slice(0, 2).toUpperCase() || 'SF';
@@ -37,13 +27,7 @@ export default function DashboardLayout({ children }: Props) {
     return <OnboardingView />;
   }
 
-  const visibleLinks = sidebarLinks.filter(l => {
-    if (currentUserRole === 'worker') {
-      if (l.href === '/reports') return false;
-      if (l.href === '/finance') return false;
-    }
-    return true;
-  });
+  const visibleLinks = visibleNavLinks(currentUserRole);
 
   return (
     <div className="min-h-[100vh] font-sans text-slate-900 dark:text-slate-100 selection:bg-slate-200 dark:selection:bg-zinc-800">

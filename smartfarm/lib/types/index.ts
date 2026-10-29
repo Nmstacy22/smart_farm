@@ -26,3 +26,36 @@ export type Activity = {
   description: string;
   person_responsible: string;
 };
+
+export type TeamRole = 'owner' | 'manager' | 'worker';
+
+export type TeamMember = {
+  id: string; // farm_user_roles row id
+  user_id: string;
+  role: TeamRole;
+  joined_at: string;
+  name: string; // full name, falling back to email
+  email: string | null;
+  phone: string | null;
+  users: { email: string }; // legacy display-name field used by older components
+};
+
+export type MarketPrice = {
+  id: string;
+  commodity: string;
+  market: string | null;
+  unit: string;
+  price: number;
+  currency: string;
+  observed_on: string; // YYYY-MM-DD
+  notes: string | null;
+  recorded_by: string | null;
+};
+
+export type FarmMessage = {
+  id: string;
+  author_id: string;
+  body: string;
+  is_announcement: boolean;
+  created_at: string;
+};

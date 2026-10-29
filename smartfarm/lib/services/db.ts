@@ -1,4 +1,5 @@
 import { createClient } from '../supabase/client';
+import type { FarmMessage, MarketPrice, TeamMember, TeamRole } from '../types';
 
 type DbObject = Record<string, unknown>;
 
@@ -781,30 +782,186 @@ export const dbService = {
     return true;
   },
 
-  async getFarmTeam(): Promise<any[]> {
+  /**
+   * Members of the active farm with their profile details. `users.email` holds the display
+   * name (full name, then email) for older components that read it.
+   */
+  async getFarmTeam(): Promise<TeamMember[]> {
     const farmId = await getFarmId();
     if (!farmId) return [];
     const { data, error } = await supabase
       .from('farm_user_roles')
-      .select('role, user_id')
-      .eq('farm_id', farmId);
+      .select('id, role, user_id, created_at')
+      .eq('farm_id', farmId)
+      .order('created_at', { ascending: true });
     if (error) return [];
-    
-    const userIds = data.map((r: any) => r.user_id);
-    let profilesMap: Record<string, string> = {};
+
+    const userIds = data.map((r) => r.user_id as string);
+    const profilesMap: Record<string, { full_name?: string; email?: string; phone?: string }> = {};
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('user_profile').select('id, full_name').in('id', userIds);
-      if (profiles) {
-        profiles.forEach(p => {
-          if (p.full_name) profilesMap[p.id] = p.full_name;
-        });
-      }
+      const { data: profiles } = await supabase.from('user_profile').select('id, full_name, email, phone').in('id', userIds);
+      (profiles || []).forEach((p) => { profilesMap[p.id] = p; });
     }
 
-    return (data || []).map((row: any) => ({
-      ...row,
-      users: { email: profilesMap[row.user_id] || row.user_id.slice(0, 8) + '…' },
-    }));
+    return data.map((row) => {
+      const p = profilesMap[row.user_id] || {};
+      const name = p.full_name || p.email || row.user_id.slice(0, 8) + '…';
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        role: row.role,
+        joined_at: row.created_at,
+        name,
+        email: p.email || null,
+        phone: p.phone || null,
+        users: { email: name },
+      };
+    });
+  },
+
+  /** Change a member's role. RLS only lets owners/managers do this, and only owners touch owners. */
+  async updateMemberRole(userId: string, role: TeamRole): Promise<{ success: boolean; error?: string }> {
+    const farmId = await getFarmId();
+    if (!farmId) return { success: false, error: 'No active farm' };
+    const { data, error } = await supabase
+      .from('farm_user_roles')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('farm_id', farmId)
+      .eq('user_id', userId)
+      .select('id');
+    if (error) return { success: false, error: error.message.includes('at least one owner') ? 'A farm must keep at least one owner.' : 'Could not change role.' };
+    // RLS filters out rows the user may not change, which shows up as zero rows updated
+    if (!data?.length) return { success: false, error: 'You do not have permission to change this role.' };
+    return { success: true };
+  },
+
+  /** Remove a member from the active farm (or leave it, when userId is yourself). */
+  async removeMember(userId: string): Promise<{ success: boolean; error?: string }> {
+    const farmId = await getFarmId();
+    if (!farmId) return { success: false, error: 'No active farm' };
+    const { data, error } = await supabase
+      .from('farm_user_roles')
+      .delete()
+      .eq('farm_id', farmId)
+      .eq('user_id', userId)
+      .select('id');
+    if (error) return { success: false, error: error.message.includes('at least one owner') ? 'A farm must keep at least one owner.' : 'Could not remove member.' };
+    if (!data?.length) return { success: false, error: 'You do not have permission to remove this member.' };
+    return { success: true };
+  },
+
+  async getMyProfile(): Promise<{ id: string; full_name: string; email: string; phone: string } | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data } = await supabase.from('user_profile').select('id, full_name, email, phone').eq('id', user.id).maybeSingle();
+    return {
+      id: user.id,
+      full_name: data?.full_name || '',
+      email: data?.email || user.email || '',
+      phone: data?.phone || '',
+    };
+  },
+
+  /** Create or update the signed-in user's own profile (name and phone for SMS). */
+  async updateMyProfile(updates: { full_name: string; phone: string }): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { error } = await supabase.from('user_profile').upsert({
+      id: user.id,
+      email: user.email,
+      full_name: updates.full_name.trim() || null,
+      phone: updates.phone.replace(/[\s-]/g, '') || null,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('Supabase Profile Update Error:', error);
+      return false;
+    }
+    return true;
+  },
+
+  /** ID of the farm currently selected in this browser (needed by server routes). */
+  async getActiveFarmId(): Promise<string | null> {
+    return getFarmId();
+  },
+
+  async getMarketPrices(): Promise<MarketPrice[]> {
+    const farmId = await getFarmId();
+    if (!farmId) return [];
+    const { data, error } = await supabase
+      .from('market_prices')
+      .select('id, commodity, market, unit, price, currency, observed_on, notes, recorded_by')
+      .eq('farm_id', farmId)
+      .order('observed_on', { ascending: false })
+      .limit(500);
+    if (error) {
+      console.error('Supabase Market Prices Read Error:', error);
+      return [];
+    }
+    return data.map((row) => ({ ...row, price: Number(row.price) }));
+  },
+
+  async createMarketPrice(entry: Omit<MarketPrice, 'id' | 'recorded_by'>): Promise<boolean> {
+    const farmId = await getFarmId();
+    if (!farmId) return false;
+    const { error } = await supabase.from('market_prices').insert([{
+      farm_id: farmId,
+      commodity: entry.commodity.trim(),
+      market: entry.market?.trim() || null,
+      unit: entry.unit,
+      price: entry.price,
+      currency: entry.currency || 'XAF',
+      observed_on: entry.observed_on,
+      notes: entry.notes?.trim() || null,
+    }]);
+    if (error) {
+      console.error('Supabase Market Price Insert Error:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteMarketPrice(id: string): Promise<boolean> {
+    const { data, error } = await supabase.from('market_prices').delete().eq('id', id).select('id');
+    return !error && !!data?.length;
+  },
+
+  async getMessages(): Promise<FarmMessage[]> {
+    const farmId = await getFarmId();
+    if (!farmId) return [];
+    const { data, error } = await supabase
+      .from('farm_messages')
+      .select('id, author_id, body, is_announcement, created_at')
+      .eq('farm_id', farmId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) {
+      console.error('Supabase Messages Read Error:', error);
+      return [];
+    }
+    return data;
+  },
+
+  async postMessage(body: string, isAnnouncement = false): Promise<boolean> {
+    const farmId = await getFarmId();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!farmId || !user) return false;
+    const { error } = await supabase.from('farm_messages').insert([{
+      farm_id: farmId,
+      author_id: user.id,
+      body: body.trim(),
+      is_announcement: isAnnouncement,
+    }]);
+    if (error) {
+      console.error('Supabase Message Insert Error:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteMessage(id: string): Promise<boolean> {
+    const { data, error } = await supabase.from('farm_messages').delete().eq('id', id).select('id');
+    return !error && !!data?.length;
   },
 
   /** The active farm's invite code (created on first use). Owners/managers only; null otherwise. */

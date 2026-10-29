@@ -47,3 +47,40 @@ CREATE TRIGGER sf_on_auth_user_created
 INSERT INTO public.user_profile (id, email)
 SELECT id, email FROM auth.users
 ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
+
+-- ----------------------------------------------------------
+-- Market prices (Market page)
+-- Prices the farm team observes at local markets, so they can
+-- see trends and choose when and where to sell.
+-- ----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.market_prices (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  farm_id uuid NOT NULL REFERENCES public.farm(id) ON DELETE CASCADE,
+  commodity text NOT NULL,
+  market text,
+  unit text NOT NULL DEFAULT 'kg',
+  price numeric NOT NULL CHECK (price >= 0),
+  currency text NOT NULL DEFAULT 'XAF',
+  observed_on date NOT NULL DEFAULT current_date,
+  notes text,
+  recorded_by uuid REFERENCES auth.users(id) DEFAULT auth.uid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS market_prices_farm_observed_idx
+  ON public.market_prices (farm_id, observed_on DESC);
+
+-- ----------------------------------------------------------
+-- Team messages (Communication page)
+-- A per-farm message board. Announcements are pinned at the top
+-- and can only be posted by owners/managers (enforced by RLS).
+-- ----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.farm_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  farm_id uuid NOT NULL REFERENCES public.farm(id) ON DELETE CASCADE,
+  author_id uuid NOT NULL REFERENCES auth.users(id) DEFAULT auth.uid(),
+  body text NOT NULL CHECK (char_length(trim(body)) BETWEEN 1 AND 2000),
+  is_announcement boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS farm_messages_farm_created_idx
+  ON public.farm_messages (farm_id, created_at DESC);

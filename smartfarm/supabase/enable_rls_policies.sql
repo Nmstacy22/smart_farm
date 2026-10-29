@@ -307,7 +307,8 @@ DECLARE
     'inventory_expirations', 'inventory_adjustment_reason_codes', 'inventory_movements', 'stock_levels',
     'activity_types', 'activities',
     'task_statuses', 'tasks', 'task_assignments', 'task_attachments',
-    'sensor_device_farm_bindings', 'sensor_measurements_normalized', 'ai_jobs', 'ai_outputs'
+    'sensor_device_farm_bindings', 'sensor_measurements_normalized', 'ai_jobs', 'ai_outputs',
+    'market_prices'
   ];
   -- Owner/manager only, for every operation.
   restricted text[] := ARRAY[
@@ -328,6 +329,28 @@ BEGIN
     CONTINUE WHEN to_regclass('public.' || t) IS NULL;
     EXECUTE format('CREATE POLICY sf_all ON public.%I FOR ALL TO authenticated USING (public.sf_is_manager(farm_id)) WITH CHECK (public.sf_is_manager(farm_id))', t);
   END LOOP;
+END;
+$$;
+
+-- ----------------------------------------------------------
+-- 6. farm_messages (Communication page)
+--    Members read the board and post as themselves; only owners/managers
+--    post announcements. Authors delete their own messages, managers any.
+--    No UPDATE policy: messages are not editable.
+-- ----------------------------------------------------------
+DO $$
+BEGIN
+  IF to_regclass('public.farm_messages') IS NOT NULL THEN
+    CREATE POLICY sf_select ON public.farm_messages FOR SELECT TO authenticated
+      USING (public.sf_is_member(farm_id));
+    CREATE POLICY sf_insert ON public.farm_messages FOR INSERT TO authenticated
+      WITH CHECK (
+        author_id = auth.uid() AND public.sf_is_member(farm_id)
+        AND (NOT is_announcement OR public.sf_is_manager(farm_id))
+      );
+    CREATE POLICY sf_delete ON public.farm_messages FOR DELETE TO authenticated
+      USING (public.sf_is_member(farm_id) AND (author_id = auth.uid() OR public.sf_is_manager(farm_id)));
+  END IF;
 END;
 $$;
 

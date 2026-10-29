@@ -1,38 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import { dbService } from '../../lib/services/db';
-import { Copy, Check, UserPlus, Loader2, RefreshCw } from 'lucide-react';
+import { UserPlus, Loader2 } from 'lucide-react';
+import { InviteCodeCard } from '../team/InviteCodeCard';
 
 export function TeamManagement({ team, farmId }: { team: any[], farmId?: string }) {
-  const [copied, setCopied] = useState(false);
-  const [joinCode, setJoinCode] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [joinSuccess, setJoinSuccess] = useState('');
-
-  // The invite code is separate from the farm ID and only readable by owners/managers
-  useEffect(() => {
-    if (!farmId) return;
-    dbService.getJoinCode().then(setJoinCode);
-  }, [farmId]);
-
-  const handleCopy = () => {
-    if (!joinCode) return;
-    navigator.clipboard.writeText(joinCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleRegenerate = async () => {
-    if (!confirm('Create a new invite code? The current code will stop working.')) return;
-    setRegenerating(true);
-    const code = await dbService.regenerateJoinCode();
-    if (code) setJoinCode(code);
-    setRegenerating(false);
-  };
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +34,10 @@ export function TeamManagement({ team, farmId }: { team: any[], farmId?: string 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Farm Team</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Farm Team</h3>
+          <Link href="/users" className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">Manage team →</Link>
+        </div>
         {team.length === 0 ? (
           <p className="text-sm text-slate-500 mt-2">No team members linked.</p>
         ) : (
@@ -78,27 +59,7 @@ export function TeamManagement({ team, farmId }: { team: any[], farmId?: string 
         {farmId && (
           <div>
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">Invite Members</h4>
-            <p className="text-xs text-slate-500 mb-2">Share this code with others so they can join your farm as workers.</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 block p-2 text-sm font-bold tracking-widest bg-slate-100 dark:bg-zinc-800 rounded-lg text-slate-800 dark:text-slate-300 overflow-x-auto whitespace-nowrap">
-                {joinCode ?? '…'}
-              </code>
-              <button
-                onClick={handleRegenerate}
-                disabled={regenerating || !joinCode}
-                className="p-2 bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors cursor-pointer"
-                title="Create a new code"
-              >
-                <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
-              </button>
-              <button 
-                onClick={handleCopy}
-                className="p-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-                title="Copy Join Code"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
+            <InviteCodeCard compact />
           </div>
         )}
 
