@@ -22,7 +22,21 @@ npm run lint     # eslint (flat config, next core-web-vitals + typescript)
 npx tsc --noEmit # type-check only
 ```
 
-There is no test framework configured.
+End-to-end tests use Playwright against a local Supabase running in Docker. Start Docker Desktop first.
+
+```bash
+npm run test:e2e                          # reset the local DB, build the app against it, run all tests
+npm run test:e2e -- -g "market"           # run tests whose name matches
+npm run test:e2e -- e2e/tests/03-security.spec.ts   # one file
+npm run test:e2e:stop                     # stop the local Supabase containers
+```
+
+How the setup works:
+- `e2e/run.mjs` regenerates `e2e/supabase/migrations/` from `db.sql` and `supabase/*.sql` (via `e2e/prepare-db.mjs`). It then starts Supabase with only the db, auth and REST services, and resets the database.
+- Playwright builds into `.next-e2e`, using env vars that point at the local Supabase, so the real project and the normal `.next` build are never touched.
+- Specs in `e2e/tests/02-farm-workflow.spec.ts` run serially and share state: an owner and a worker build up one farm. Running a later test on its own with `-g` fails, because the earlier steps never ran.
+- Every step fails on any browser console error or failed HTTP request. Use `trackErrors(page).allow(regex)` for errors a test triggers on purpose.
+- `03-security.spec.ts` checks the RLS rules directly through the API, without the UI.
 
 ## Environment
 

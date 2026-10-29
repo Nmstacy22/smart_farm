@@ -3,13 +3,19 @@
 SmartFarm runs on **Vercel** (the Next.js app) and **Supabase** (database and login).
 The database scripts and the app code depend on each other, so do steps 1 and 2 together.
 
+## 0. Run the tests
+
+With Docker Desktop running, run `npm run test:e2e` in `smartfarm/`. It runs the whole app against a local copy of the database, using an owner and a worker account, and checks the security rules. All tests should pass before you deploy.
+
 ## 1. Supabase
+
+> If the dashboard shows the project as **paused**, click **Restore** first. Free-tier projects pause after a period of inactivity, and a paused project's URL stops working.
 
 ### 1.1 Run the SQL scripts
 
 In the Supabase dashboard, open **SQL Editor** and run these files from `supabase/`, in this order. Paste each whole file and click **Run**.
 
-1. `schema_additions.sql` adds invite codes, user emails, market prices and team messages.
+1. `schema_additions.sql` adds invite codes, user emails, market prices, team messages, and the crop, livestock and inventory columns the pages save (head count, quantity, status and so on).
 2. `enable_rls_policies.sql` turns on row level security (RLS) and adds the access rules and helper functions.
 
 Both scripts are safe to run again. Re-run `enable_rls_policies.sql` whenever you add a table; see the comments inside it.
