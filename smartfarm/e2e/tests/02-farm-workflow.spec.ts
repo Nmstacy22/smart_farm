@@ -109,6 +109,13 @@ test('tasks: create a task and mark it done', async () => {
   await owner.locator('form').getByRole('button', { name: /create|add|save/i }).click();
   await expect(owner.getByRole('heading', { name: 'Pending (1)' })).toBeVisible();
   await expect(owner.getByText('Weed the north field')).toBeVisible();
+
+  await owner.getByRole('button', { name: 'Mark "Weed the north field" as done' }).click();
+  await expect(owner.getByRole('heading', { name: 'Completed (1)' })).toBeVisible();
+  await expect(owner.getByRole('heading', { name: 'Pending (0)' })).toBeVisible();
+  // The status is saved, not just shown
+  await owner.reload();
+  await expect(owner.getByRole('heading', { name: 'Completed (1)' })).toBeVisible();
 });
 
 test('finance: record income and see it listed', async () => {
