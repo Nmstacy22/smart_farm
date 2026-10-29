@@ -233,6 +233,10 @@ export const dbService = {
       area_ha:
         typeof item.area === 'string' ? Number(item.area.replace(' ha', '')) || null : null,
       notes: item.crop,
+      crop: item.crop || null,
+      status: item.status || 'healthy',
+      moisture: Number(item.moisture) || 0,
+      workers: Number(item.workers) || 0,
     };
 
     const { data, error } = await supabase.from('fields').insert([fieldPayload]).select();
@@ -256,7 +260,10 @@ export const dbService = {
     const payload: DbObject = {};
     if (updates.title) payload.name = updates.title;
     if (typeof updates.area === 'string') payload.area_ha = Number(updates.area.replace(' ha', '')) || null;
-    if (updates.crop) payload.notes = updates.crop;
+    if (updates.crop) { payload.notes = updates.crop; payload.crop = updates.crop; }
+    if (updates.status) payload.status = updates.status;
+    if (updates.moisture !== undefined) payload.moisture = Number(updates.moisture) || 0;
+    if (updates.workers !== undefined) payload.workers = Number(updates.workers) || 0;
 
     const { data, error } = await supabase.from('fields').update(payload).eq('id', id).select();
     if (error) {
@@ -266,7 +273,7 @@ export const dbService = {
     return {
       ...data?.[0],
       title: data?.[0]?.name,
-      crop: data?.[0]?.notes,
+      crop: data?.[0]?.crop ?? data?.[0]?.notes,
       area: data?.[0]?.area_ha ? `${data[0].area_ha} ha` : '0 ha',
       workers: updates.workers ?? data?.[0]?.workers ?? 0,
       status: updates.status || data?.[0]?.status || 'healthy',
@@ -321,6 +328,10 @@ export const dbService = {
       farm_id: farmId,
       name: item.name,
       livestock_type_id: typeId,
+      count: Number(item.count) || 0,
+      status: item.status || 'healthy',
+      feed: item.feed || null,
+      health_check: item.health_check || null,
     };
     const { data, error } = await supabase.from('livestock_units').insert([payload]).select();
     if (error) {
@@ -341,6 +352,10 @@ export const dbService = {
   async updateLivestock(id: string, updates: DbObject): Promise<DbObject | null> {
     const payload: DbObject = {};
     if (updates.name) payload.name = updates.name;
+    if (updates.count !== undefined) payload.count = Number(updates.count) || 0;
+    if (updates.status) payload.status = updates.status;
+    if (updates.feed !== undefined) payload.feed = updates.feed || null;
+    if (updates.health_check !== undefined) payload.health_check = updates.health_check || null;
     if (updates.type) {
       const farmId = await getFarmId();
       if (farmId) {
@@ -387,9 +402,9 @@ export const dbService = {
       id: item.id,
       name: item.name,
       category: item.item_type || 'Inventory',
-      qty: item.qty ?? 0,
+      qty: Number(item.qty ?? 0),
       unit: item.unit || 'pcs',
-      lowStock: item.low_stock ?? item.lowStock ?? false,
+      lowStock: item.low_stock ?? false,
     }));
   },
 
@@ -405,10 +420,11 @@ export const dbService = {
       name: item.name,
       item_type: item.category,
       sku: item.sku || null,
+      qty: Number(item.qty) || 0,
+      unit: item.unit || 'pcs',
+      low_stock: Boolean(item.lowStock),
     };
-    
-    // Note: If qty, unit, low_stock columns don't exist in Supabase yet, this will succeed
-    // but the frontend will read them as undefined/0 on next fetch.
+
     const { data, error } = await supabase.from('inventory_items').insert([payload]).select();
     if (error) {
       console.error('Supabase Inventory Insert Error:', error);
@@ -429,6 +445,9 @@ export const dbService = {
     if (updates.name !== undefined) payload.name = updates.name;
     if (updates.category !== undefined) payload.item_type = updates.category;
     if (updates.sku !== undefined) payload.sku = updates.sku;
+    if (updates.qty !== undefined) payload.qty = Number(updates.qty) || 0;
+    if (updates.unit !== undefined) payload.unit = updates.unit;
+    if (updates.lowStock !== undefined) payload.low_stock = Boolean(updates.lowStock);
 
     const { data, error } = await supabase.from('inventory_items').update(payload).eq('id', id).select();
     if (error) {
@@ -442,7 +461,7 @@ export const dbService = {
       category: updates.category || record.item_type || 'Inventory',
       qty: updates.qty ?? record.qty ?? 0,
       unit: updates.unit || record.unit || 'pcs',
-      lowStock: updates.lowStock ?? record.lowStock ?? false,
+      lowStock: updates.lowStock ?? record.low_stock ?? false,
     };
   },
 

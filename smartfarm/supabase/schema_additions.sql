@@ -84,3 +84,22 @@ CREATE TABLE IF NOT EXISTS public.farm_messages (
 );
 CREATE INDEX IF NOT EXISTS farm_messages_farm_created_idx
   ON public.farm_messages (farm_id, created_at DESC);
+
+-- ----------------------------------------------------------
+-- Columns the Crops, Livestock and Inventory pages edit.
+-- db.sql never had them, so these values used to be lost on save
+-- (e.g. inventory quantity and livestock head count read back as 0).
+-- ----------------------------------------------------------
+ALTER TABLE public.fields ADD COLUMN IF NOT EXISTS crop text;
+ALTER TABLE public.fields ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'healthy';
+ALTER TABLE public.fields ADD COLUMN IF NOT EXISTS moisture integer NOT NULL DEFAULT 0;
+ALTER TABLE public.fields ADD COLUMN IF NOT EXISTS workers integer NOT NULL DEFAULT 0;
+
+ALTER TABLE public.livestock_units ADD COLUMN IF NOT EXISTS count integer NOT NULL DEFAULT 0;
+ALTER TABLE public.livestock_units ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'healthy';
+ALTER TABLE public.livestock_units ADD COLUMN IF NOT EXISTS feed text;
+ALTER TABLE public.livestock_units ADD COLUMN IF NOT EXISTS health_check date;
+
+ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS qty numeric NOT NULL DEFAULT 0;
+ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS unit text NOT NULL DEFAULT 'pcs';
+ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS low_stock boolean NOT NULL DEFAULT false;
