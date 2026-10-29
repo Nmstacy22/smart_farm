@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import { IncomeExpenseChart, InventoryPieChart } from "../../components/reports/ReportsCharts";
 import { dbService } from "../../lib/services/db";
-import { Loader2, PieChart, TrendingUp, Package, MapPin, Beef } from 'lucide-react';
+import { Loader2, PieChart, TrendingUp, MapPin, Beef } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ReportsPage() {

@@ -1,4 +1,5 @@
 import { createClient } from '../supabase/client';
+import type { FarmMessage, MarketPrice, TeamMember, TeamRole } from '../types';
 
 type DbObject = Record<string, unknown>;
 
@@ -17,20 +18,40 @@ async function getCount(table: string, filters: Record<string, unknown> = {}): P
   return count ?? 0;
 }
 
-async function getTaskStatusId(name: string): Promise<string | null> {
+/**
+ * Resolve a task status (e.g. 'pending', 'completed') to its id for this farm.
+ * Statuses are stored per farm and RLS hides other farms' rows, so a new farm
+ * starts with none; missing statuses are created on first use.
+ */
+async function getTaskStatusId(name: string, farmId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('task_statuses')
     .select('id')
     .eq('name', name)
+    .eq('farm_id', farmId)
     .limit(1)
     .single();
 
-  if (error) {
+  // PGRST116 = no matching row, which just means the status needs creating
+  if (error && error.code !== 'PGRST116') {
     console.error('Supabase task status lookup failed:', error);
     return null;
   }
 
-  return data?.id || null;
+  if (data?.id) return data.id;
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('task_statuses')
+    .insert([{ name, farm_id: farmId }])
+    .select('id')
+    .single();
+
+  if (insertError) {
+    console.error('Supabase task status insert failed:', insertError);
+    return null;
+  }
+
+  return inserted?.id || null;
 }
 
 async function getOrCreateLivestockType(name: string, farmId: string): Promise<string | null> {
@@ -142,28 +163,19 @@ export const dbService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data: newFarmData, error: insertError } = await supabase
-      .from('farm')
-      .insert([{ name: name || 'My Farm' }])
-      .select('id')
-      .single();
+    // create_farm (supabase/enable_rls_policies.sql) inserts the farm and the owner role together.
+    // A plain insert can't work under RLS: the creator isn't a member yet, so reading the new row back is denied.
+    const { data: farmId, error } = await supabase.rpc('create_farm', { p_name: name || 'My Farm' });
 
-    if (insertError || !newFarmData?.id) {
-      console.error('Failed to create farm:', insertError);
+    if (error || !farmId) {
+      console.error('Failed to create farm:', error);
       return null;
     }
 
-    // Link the user to the new farm as an owner
-    await supabase.from('farm_user_roles').insert([{
-      farm_id: newFarmData.id,
-      user_id: user.id,
-      role: 'owner'
-    }]);
-
     if (typeof window !== 'undefined') {
-      localStorage.setItem('active_farm_id', newFarmData.id);
+      localStorage.setItem('active_farm_id', farmId);
     }
-    return { id: newFarmData.id };
+    return { id: farmId };
   },
 
   async getOverviewStats(): Promise<{ fields: number; workers: number; tasks: number }> {
@@ -221,6 +233,10 @@ export const dbService = {
       area_ha:
         typeof item.area === 'string' ? Number(item.area.replace(' ha', '')) || null : null,
       notes: item.crop,
+      crop: item.crop || null,
+      status: item.status || 'healthy',
+      moisture: Number(item.moisture) || 0,
+      workers: Number(item.workers) || 0,
     };
 
     const { data, error } = await supabase.from('fields').insert([fieldPayload]).select();
@@ -244,7 +260,10 @@ export const dbService = {
     const payload: DbObject = {};
     if (updates.title) payload.name = updates.title;
     if (typeof updates.area === 'string') payload.area_ha = Number(updates.area.replace(' ha', '')) || null;
-    if (updates.crop) payload.notes = updates.crop;
+    if (updates.crop) { payload.notes = updates.crop; payload.crop = updates.crop; }
+    if (updates.status) payload.status = updates.status;
+    if (updates.moisture !== undefined) payload.moisture = Number(updates.moisture) || 0;
+    if (updates.workers !== undefined) payload.workers = Number(updates.workers) || 0;
 
     const { data, error } = await supabase.from('fields').update(payload).eq('id', id).select();
     if (error) {
@@ -254,7 +273,7 @@ export const dbService = {
     return {
       ...data?.[0],
       title: data?.[0]?.name,
-      crop: data?.[0]?.notes,
+      crop: data?.[0]?.crop ?? data?.[0]?.notes,
       area: data?.[0]?.area_ha ? `${data[0].area_ha} ha` : '0 ha',
       workers: updates.workers ?? data?.[0]?.workers ?? 0,
       status: updates.status || data?.[0]?.status || 'healthy',
@@ -309,6 +328,10 @@ export const dbService = {
       farm_id: farmId,
       name: item.name,
       livestock_type_id: typeId,
+      count: Number(item.count) || 0,
+      status: item.status || 'healthy',
+      feed: item.feed || null,
+      health_check: item.health_check || null,
     };
     const { data, error } = await supabase.from('livestock_units').insert([payload]).select();
     if (error) {
@@ -329,6 +352,10 @@ export const dbService = {
   async updateLivestock(id: string, updates: DbObject): Promise<DbObject | null> {
     const payload: DbObject = {};
     if (updates.name) payload.name = updates.name;
+    if (updates.count !== undefined) payload.count = Number(updates.count) || 0;
+    if (updates.status) payload.status = updates.status;
+    if (updates.feed !== undefined) payload.feed = updates.feed || null;
+    if (updates.health_check !== undefined) payload.health_check = updates.health_check || null;
     if (updates.type) {
       const farmId = await getFarmId();
       if (farmId) {
@@ -375,9 +402,9 @@ export const dbService = {
       id: item.id,
       name: item.name,
       category: item.item_type || 'Inventory',
-      qty: item.qty ?? 0,
+      qty: Number(item.qty ?? 0),
       unit: item.unit || 'pcs',
-      lowStock: item.low_stock ?? item.lowStock ?? false,
+      lowStock: item.low_stock ?? false,
     }));
   },
 
@@ -393,10 +420,11 @@ export const dbService = {
       name: item.name,
       item_type: item.category,
       sku: item.sku || null,
+      qty: Number(item.qty) || 0,
+      unit: item.unit || 'pcs',
+      low_stock: Boolean(item.lowStock),
     };
-    
-    // Note: If qty, unit, low_stock columns don't exist in Supabase yet, this will succeed
-    // but the frontend will read them as undefined/0 on next fetch.
+
     const { data, error } = await supabase.from('inventory_items').insert([payload]).select();
     if (error) {
       console.error('Supabase Inventory Insert Error:', error);
@@ -417,6 +445,9 @@ export const dbService = {
     if (updates.name !== undefined) payload.name = updates.name;
     if (updates.category !== undefined) payload.item_type = updates.category;
     if (updates.sku !== undefined) payload.sku = updates.sku;
+    if (updates.qty !== undefined) payload.qty = Number(updates.qty) || 0;
+    if (updates.unit !== undefined) payload.unit = updates.unit;
+    if (updates.lowStock !== undefined) payload.low_stock = Boolean(updates.lowStock);
 
     const { data, error } = await supabase.from('inventory_items').update(payload).eq('id', id).select();
     if (error) {
@@ -430,7 +461,7 @@ export const dbService = {
       category: updates.category || record.item_type || 'Inventory',
       qty: updates.qty ?? record.qty ?? 0,
       unit: updates.unit || record.unit || 'pcs',
-      lowStock: updates.lowStock ?? record.lowStock ?? false,
+      lowStock: updates.lowStock ?? record.low_stock ?? false,
     };
   },
 
@@ -611,7 +642,7 @@ export const dbService = {
     const userIds = [
       ...new Set(data.map((t: any) => t.task_assignments?.[0]?.worker_user_id).filter(Boolean))
     ];
-    let profilesMap: Record<string, string> = {};
+    const profilesMap: Record<string, string> = {};
     if (userIds.length > 0) {
       const { data: profiles } = await supabase.from('user_profile').select('id, full_name').in('id', userIds);
       if (profiles) {
@@ -646,7 +677,7 @@ export const dbService = {
       return null;
     }
 
-    const statusId = await getTaskStatusId((task.status as string) || 'pending');
+    const statusId = await getTaskStatusId((task.status as string) || 'pending', farmId);
     const payload: DbObject = {
       farm_id: farmId,
       title: task.title,
@@ -682,7 +713,8 @@ export const dbService = {
     if (updates.title) payload.title = updates.title;
     if (updates.dueDate) payload.due_date = updates.dueDate;
     if (typeof updates.status === 'string') {
-      const statusId = await getTaskStatusId(updates.status);
+      const farmId = await getFarmId();
+      const statusId = farmId ? await getTaskStatusId(updates.status, farmId) : null;
       if (statusId) payload.status_id = statusId;
     }
 
@@ -769,57 +801,226 @@ export const dbService = {
     return true;
   },
 
-  async getFarmTeam(): Promise<any[]> {
+  /**
+   * Members of the active farm with their profile details. `users.email` holds the display
+   * name (full name, then email) for older components that read it.
+   */
+  async getFarmTeam(): Promise<TeamMember[]> {
     const farmId = await getFarmId();
     if (!farmId) return [];
     const { data, error } = await supabase
       .from('farm_user_roles')
-      .select('role, user_id')
-      .eq('farm_id', farmId);
+      .select('id, role, user_id, created_at')
+      .eq('farm_id', farmId)
+      .order('created_at', { ascending: true });
     if (error) return [];
-    
-    const userIds = data.map((r: any) => r.user_id);
-    let profilesMap: Record<string, string> = {};
+
+    const userIds = data.map((r) => r.user_id as string);
+    const profilesMap: Record<string, { full_name?: string; email?: string; phone?: string }> = {};
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from('user_profile').select('id, full_name').in('id', userIds);
-      if (profiles) {
-        profiles.forEach(p => {
-          if (p.full_name) profilesMap[p.id] = p.full_name;
-        });
-      }
+      const { data: profiles } = await supabase.from('user_profile').select('id, full_name, email, phone').in('id', userIds);
+      (profiles || []).forEach((p) => { profilesMap[p.id] = p; });
     }
 
-    return (data || []).map((row: any) => ({
-      ...row,
-      users: { email: profilesMap[row.user_id] || row.user_id.slice(0, 8) + '…' },
-    }));
+    return data.map((row) => {
+      const p = profilesMap[row.user_id] || {};
+      const name = p.full_name || p.email || row.user_id.slice(0, 8) + '…';
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        role: row.role,
+        joined_at: row.created_at,
+        name,
+        email: p.email || null,
+        phone: p.phone || null,
+        users: { email: name },
+      };
+    });
+  },
+
+  /** Change a member's role. RLS only lets owners/managers do this, and only owners touch owners. */
+  async updateMemberRole(userId: string, role: TeamRole): Promise<{ success: boolean; error?: string }> {
+    const farmId = await getFarmId();
+    if (!farmId) return { success: false, error: 'No active farm' };
+    const { data, error } = await supabase
+      .from('farm_user_roles')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('farm_id', farmId)
+      .eq('user_id', userId)
+      .select('id');
+    if (error) return { success: false, error: error.message.includes('at least one owner') ? 'A farm must keep at least one owner.' : 'Could not change role.' };
+    // RLS filters out rows the user may not change, which shows up as zero rows updated
+    if (!data?.length) return { success: false, error: 'You do not have permission to change this role.' };
+    return { success: true };
+  },
+
+  /** Remove a member from the active farm (or leave it, when userId is yourself). */
+  async removeMember(userId: string): Promise<{ success: boolean; error?: string }> {
+    const farmId = await getFarmId();
+    if (!farmId) return { success: false, error: 'No active farm' };
+    const { data, error } = await supabase
+      .from('farm_user_roles')
+      .delete()
+      .eq('farm_id', farmId)
+      .eq('user_id', userId)
+      .select('id');
+    if (error) return { success: false, error: error.message.includes('at least one owner') ? 'A farm must keep at least one owner.' : 'Could not remove member.' };
+    if (!data?.length) return { success: false, error: 'You do not have permission to remove this member.' };
+    return { success: true };
+  },
+
+  async getMyProfile(): Promise<{ id: string; full_name: string; email: string; phone: string } | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data } = await supabase.from('user_profile').select('id, full_name, email, phone').eq('id', user.id).maybeSingle();
+    return {
+      id: user.id,
+      full_name: data?.full_name || '',
+      email: data?.email || user.email || '',
+      phone: data?.phone || '',
+    };
+  },
+
+  /** Create or update the signed-in user's own profile (name and phone for SMS). */
+  async updateMyProfile(updates: { full_name: string; phone: string }): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { error } = await supabase.from('user_profile').upsert({
+      id: user.id,
+      email: user.email,
+      full_name: updates.full_name.trim() || null,
+      phone: updates.phone.replace(/[\s-]/g, '') || null,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('Supabase Profile Update Error:', error);
+      return false;
+    }
+    return true;
+  },
+
+  /** ID of the farm currently selected in this browser (needed by server routes). */
+  async getActiveFarmId(): Promise<string | null> {
+    return getFarmId();
+  },
+
+  async getMarketPrices(): Promise<MarketPrice[]> {
+    const farmId = await getFarmId();
+    if (!farmId) return [];
+    const { data, error } = await supabase
+      .from('market_prices')
+      .select('id, commodity, market, unit, price, currency, observed_on, notes, recorded_by')
+      .eq('farm_id', farmId)
+      .order('observed_on', { ascending: false })
+      .limit(500);
+    if (error) {
+      console.error('Supabase Market Prices Read Error:', error);
+      return [];
+    }
+    return data.map((row) => ({ ...row, price: Number(row.price) }));
+  },
+
+  async createMarketPrice(entry: Omit<MarketPrice, 'id' | 'recorded_by'>): Promise<boolean> {
+    const farmId = await getFarmId();
+    if (!farmId) return false;
+    const { error } = await supabase.from('market_prices').insert([{
+      farm_id: farmId,
+      commodity: entry.commodity.trim(),
+      market: entry.market?.trim() || null,
+      unit: entry.unit,
+      price: entry.price,
+      currency: entry.currency || 'XAF',
+      observed_on: entry.observed_on,
+      notes: entry.notes?.trim() || null,
+    }]);
+    if (error) {
+      console.error('Supabase Market Price Insert Error:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteMarketPrice(id: string): Promise<boolean> {
+    const { data, error } = await supabase.from('market_prices').delete().eq('id', id).select('id');
+    return !error && !!data?.length;
+  },
+
+  async getMessages(): Promise<FarmMessage[]> {
+    const farmId = await getFarmId();
+    if (!farmId) return [];
+    const { data, error } = await supabase
+      .from('farm_messages')
+      .select('id, author_id, body, is_announcement, created_at')
+      .eq('farm_id', farmId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) {
+      console.error('Supabase Messages Read Error:', error);
+      return [];
+    }
+    return data;
+  },
+
+  async postMessage(body: string, isAnnouncement = false): Promise<boolean> {
+    const farmId = await getFarmId();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!farmId || !user) return false;
+    const { error } = await supabase.from('farm_messages').insert([{
+      farm_id: farmId,
+      author_id: user.id,
+      body: body.trim(),
+      is_announcement: isAnnouncement,
+    }]);
+    if (error) {
+      console.error('Supabase Message Insert Error:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteMessage(id: string): Promise<boolean> {
+    const { data, error } = await supabase.from('farm_messages').delete().eq('id', id).select('id');
+    return !error && !!data?.length;
+  },
+
+  /** The active farm's invite code (created on first use). Owners/managers only; null otherwise. */
+  async getJoinCode(): Promise<string | null> {
+    const farmId = await getFarmId();
+    if (!farmId) return null;
+    const { data, error } = await supabase.rpc('get_join_code', { p_farm_id: farmId });
+    if (error) {
+      console.error('Failed to load invite code:', error);
+      return null;
+    }
+    return data;
+  },
+
+  /** Replace the active farm's invite code so the old one stops working. */
+  async regenerateJoinCode(): Promise<string | null> {
+    const farmId = await getFarmId();
+    if (!farmId) return null;
+    const { data, error } = await supabase.rpc('regenerate_join_code', { p_farm_id: farmId });
+    if (error) {
+      console.error('Failed to regenerate invite code:', error);
+      return null;
+    }
+    return data;
   },
 
   async joinFarm(joinCode: string): Promise<{ success: boolean; error?: string }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    // Check if farm exists
-    const { data: farm, error: farmError } = await supabase.from('farm').select('id').eq('id', joinCode).single();
-    if (farmError || !farm) return { success: false, error: 'Invalid Join Code' };
-
-    // Check if already a member
-    const { data: existing } = await supabase.from('farm_user_roles').select('id').eq('farm_id', joinCode).eq('user_id', user.id).single();
-    if (existing) return { success: false, error: 'You are already a member of this farm' };
-
-    // Insert
-    const { error: insertError } = await supabase.from('farm_user_roles').insert({
-      farm_id: joinCode,
-      user_id: user.id,
-      role: 'worker'
-    });
-
-    if (insertError) {
-      return { success: false, error: 'Failed to join farm' };
+    // Non-members can't read the farm under RLS, so join_farm looks up the invite code server-side
+    const { data: farmId, error } = await supabase.rpc('join_farm', { p_code: joinCode });
+    if (error || !farmId) {
+      // join_farm raises these messages itself; anything else is an unexpected failure
+      const known = ['Invalid Join Code', 'You are already a member of this farm'];
+      return { success: false, error: error && known.includes(error.message) ? error.message : 'Failed to join farm' };
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('active_farm_id', joinCode);
+      localStorage.setItem('active_farm_id', farmId);
     }
 
     return { success: true };

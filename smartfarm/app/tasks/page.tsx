@@ -31,6 +31,7 @@ function TaskCard({ t, currentUserRole, currentUserId, onToggle, onDelete }: { t
             if (canToggle) onToggle(t.id);
           }}
           disabled={!canToggle}
+          aria-label={isDone ? `Mark "${t.title}" as not done` : `Mark "${t.title}" as done`}
           className={`mt-1 transition-colors ${canToggle ? 'cursor-pointer hover:text-emerald-500 dark:hover:text-emerald-400' : 'cursor-not-allowed opacity-50'} ${isDone ? 'text-emerald-500' : 'text-slate-350 dark:text-zinc-650'}`}
         >
           {isDone ? <CheckCircle2 className="w-6 h-6" /> : <Circle className="w-6 h-6" />}

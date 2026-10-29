@@ -77,7 +77,7 @@ export default function OnboardingView() {
             <form onSubmit={handleJoin} className="space-y-4">
               <input
                 type="text"
-                placeholder="Enter Farm Join Code"
+                placeholder="Invite code, e.g. 7F3A9-C21B0"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 disabled={loading}

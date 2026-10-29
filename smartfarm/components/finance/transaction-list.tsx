@@ -7,9 +7,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatXAF } from "@/lib/utils";
-import { Search, Filter, Trash2, ArrowUpRight, ArrowDownRight, Tag, Coins, Download, CheckCircle } from "lucide-react";
+import { Search, Trash2, ArrowUpRight, ArrowDownRight, Coins, Download, CheckCircle } from "lucide-react";
 import { Transaction } from "./financial-summary";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 interface TransactionListProps {
   transactions: Transaction[];

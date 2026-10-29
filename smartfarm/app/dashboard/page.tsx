@@ -87,7 +87,6 @@ export default function DashboardPage() {
   }, [transactions]);
 
   const isWorker = currentUserRole === 'worker';
-  const myTasks = isWorker ? tasks : [];
   const pendingCount = tasks.filter(t => t.status !== 'done').length;
   const doneCount = tasks.filter(t => t.status === 'done').length;
 

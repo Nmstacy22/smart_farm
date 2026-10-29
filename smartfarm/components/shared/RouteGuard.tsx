@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Sprout } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const PUBLIC_PATHS = ['/', '/landing', '/login', '/signup'];
+const PUBLIC_PATHS = ['/', '/landing', '/login', '/signup' ];
 
 export default function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
